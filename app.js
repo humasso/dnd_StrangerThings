@@ -20,6 +20,9 @@ const elements = {
   searchToggleButton: document.getElementById("searchToggleButton"),
   spreadButton: document.getElementById("spreadButton"),
   statusText: document.getElementById("statusText"),
+  toolRail: document.getElementById("toolRail"),
+  toolsToggleButton: document.getElementById("toolsToggleButton"),
+  toolsWrap: document.getElementById("toolsWrap"),
   totalPages: document.getElementById("totalPages"),
   zoomInButton: document.getElementById("zoomInButton"),
   zoomOutButton: document.getElementById("zoomOutButton"),
@@ -31,6 +34,7 @@ const state = {
   currentPage: 1,
   direction: "forward",
   isSearchPanelVisible: false,
+  isToolsVisible: true,
   isSpread: false,
   pageTextCache: new Map(),
   pdf: null,
@@ -59,6 +63,7 @@ function boot() {
 
   bindEvents();
   syncSearchPanelVisibility();
+  syncToolsVisibility();
   syncControls();
   resizeObserver.observe(elements.bookStage);
   loadInitialDocument();
@@ -90,6 +95,10 @@ function bindEvents() {
 
   elements.searchToggleButton.addEventListener("click", () => {
     toggleSearchPanel();
+  });
+
+  elements.toolsToggleButton.addEventListener("click", () => {
+    toggleToolsVisibility();
   });
 
   elements.searchInput.addEventListener("input", () => {
@@ -132,6 +141,23 @@ function syncSearchPanelVisibility() {
   const actionLabel = state.isSearchPanelVisible ? "Nascondi ricerca" : "Mostra ricerca";
   elements.searchToggleButton.title = actionLabel;
   elements.searchToggleButton.setAttribute("aria-label", actionLabel);
+}
+
+function toggleToolsVisibility() {
+  state.isToolsVisible = !state.isToolsVisible;
+  syncToolsVisibility();
+  scheduleRender();
+}
+
+function syncToolsVisibility() {
+  elements.toolsWrap.classList.toggle("is-collapsed", !state.isToolsVisible);
+  elements.toolRail.hidden = !state.isToolsVisible;
+  elements.toolsToggleButton.classList.toggle("is-active", state.isToolsVisible);
+  elements.toolsToggleButton.setAttribute("aria-expanded", String(state.isToolsVisible));
+
+  const actionLabel = state.isToolsVisible ? "Nascondi strumenti" : "Mostra strumenti";
+  elements.toolsToggleButton.title = actionLabel;
+  elements.toolsToggleButton.setAttribute("aria-label", actionLabel);
 }
 
 async function loadInitialDocument() {
@@ -265,7 +291,7 @@ async function renderSpread() {
 
     if (renderId === state.renderId) {
       applySearchHighlights();
-      setStatus(`${pages.length > 1 ? "Pagine" : "Pagina"} ${pages.join(" - ")} di ${state.totalPages}`);
+      setStatus("Pronto");
     }
   } catch (error) {
     console.error(error);
@@ -622,7 +648,7 @@ function syncControls() {
 }
 
 function setStatus(message) {
-  elements.statusText.textContent = message;
+  elements.statusText.textContent = message === "Pronto" ? "" : message;
 }
 
 function clamp(value, min, max) {
