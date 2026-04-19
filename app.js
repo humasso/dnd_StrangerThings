@@ -12,9 +12,12 @@ const elements = {
   pageSpread: document.getElementById("pageSpread"),
   prevButton: document.getElementById("prevButton"),
   prevResultButton: document.getElementById("prevResultButton"),
+  readerLayout: document.querySelector(".reader-layout"),
   resultList: document.getElementById("resultList"),
   searchCount: document.getElementById("searchCount"),
   searchInput: document.getElementById("searchInput"),
+  searchPanel: document.getElementById("searchPanel"),
+  searchToggleButton: document.getElementById("searchToggleButton"),
   spreadButton: document.getElementById("spreadButton"),
   statusText: document.getElementById("statusText"),
   totalPages: document.getElementById("totalPages"),
@@ -27,7 +30,8 @@ const elements = {
 const state = {
   currentPage: 1,
   direction: "forward",
-  isSpread: true,
+  isSearchPanelVisible: false,
+  isSpread: false,
   pageTextCache: new Map(),
   pdf: null,
   renderId: 0,
@@ -54,6 +58,7 @@ function boot() {
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_CDN_VERSION}/pdf.worker.min.js`;
 
   bindEvents();
+  syncSearchPanelVisibility();
   syncControls();
   resizeObserver.observe(elements.bookStage);
   loadInitialDocument();
@@ -83,6 +88,10 @@ function bindEvents() {
     scheduleRender();
   });
 
+  elements.searchToggleButton.addEventListener("click", () => {
+    toggleSearchPanel();
+  });
+
   elements.searchInput.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = window.setTimeout(runSearch, 220);
@@ -106,6 +115,23 @@ function bindEvents() {
   });
 
   media.addEventListener("change", () => scheduleRender());
+}
+
+function toggleSearchPanel() {
+  state.isSearchPanelVisible = !state.isSearchPanelVisible;
+  syncSearchPanelVisibility();
+  scheduleRender();
+}
+
+function syncSearchPanelVisibility() {
+  elements.readerLayout.classList.toggle("search-hidden", !state.isSearchPanelVisible);
+  elements.searchPanel.hidden = !state.isSearchPanelVisible;
+  elements.searchToggleButton.classList.toggle("is-active", state.isSearchPanelVisible);
+  elements.searchToggleButton.setAttribute("aria-expanded", String(state.isSearchPanelVisible));
+
+  const actionLabel = state.isSearchPanelVisible ? "Nascondi ricerca" : "Mostra ricerca";
+  elements.searchToggleButton.title = actionLabel;
+  elements.searchToggleButton.setAttribute("aria-label", actionLabel);
 }
 
 async function loadInitialDocument() {
