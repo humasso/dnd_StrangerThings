@@ -142,6 +142,10 @@ svg {
   min-height: 0;
 }
 
+.reader-layout.search-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .reader-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -420,6 +424,10 @@ input:disabled {
   border-left: 1px solid rgba(35, 33, 29, 0.1);
   background: rgba(255, 252, 245, 0.7);
   backdrop-filter: blur(14px);
+}
+
+.reader-layout.search-hidden .search-panel {
+  display: none;
 }
 
 .search-box {

@@ -55,9 +55,22 @@
             </div>
 
             <div class="toolbar-group">
-              <button class="icon-button is-active" type="button" id="spreadButton" title="Vista libro" aria-label="Vista libro">
+              <button class="icon-button" type="button" id="spreadButton" title="Vista libro" aria-label="Vista libro">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4.75 5.75A2 2 0 0 1 6.75 4H11a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H6.75a2 2 0 0 0-2 2V5.75ZM19.25 5.75A2 2 0 0 0 17.25 4H13a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h4.25a2 2 0 0 1 2 2V5.75Z" />
+                </svg>
+              </button>
+              <button
+                class="icon-button"
+                type="button"
+                id="searchToggleButton"
+                title="Nascondi ricerca"
+                aria-label="Nascondi ricerca"
+                aria-controls="searchPanel"
+                aria-expanded="true"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
                 </svg>
               </button>
             </div>
@@ -82,7 +95,7 @@
           </div>
         </section>
 
-        <aside class="search-panel" aria-label="Ricerca nel PDF">
+        <aside class="search-panel" id="searchPanel" aria-label="Ricerca nel PDF">
           <div class="search-box">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
