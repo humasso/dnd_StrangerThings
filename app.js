@@ -124,6 +124,82 @@ function bindEvents() {
   });
 
   media.addEventListener("change", () => scheduleRender());
+
+  // ====================================================================
+  // ZOOM GESTURES - Wheel + Trackpad + Touch
+  // ====================================================================
+
+  // Wheel event: Ctrl/Cmd + scroll = zoom
+  elements.bookStage.addEventListener(
+    "wheel",
+    (event) => {
+      // Only zoom if Ctrl (Windows) or Cmd (Mac) is pressed
+      if (!event.ctrlKey && !event.metaKey) return;
+
+      event.preventDefault();
+
+      // deltaY < 0 = scroll up = zoom in
+      // deltaY > 0 = scroll down = zoom out
+      const zoomDelta = event.deltaY < 0 ? 10 : -10;
+      changeZoom(zoomDelta);
+    },
+    { passive: false }
+  );
+
+  // Touch pinch zoom (trackpad or touch device)
+  let lastTouchDistance = 0;
+
+  elements.bookStage.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length === 2) {
+        event.preventDefault();
+
+        const touch1 = event.touches[0];
+        const touch2 = event.touches[1];
+
+        // Calculate distance between two fingers
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+        if (lastTouchDistance === 0) {
+          lastTouchDistance = currentDistance;
+          return;
+        }
+
+        // Zoom based on distance change
+        const distanceDelta = currentDistance - lastTouchDistance;
+        if (Math.abs(distanceDelta) > 3) {
+          // Minimum movement threshold to avoid jitter
+          const zoomDelta = distanceDelta > 0 ? 5 : -5;
+          changeZoom(zoomDelta);
+          lastTouchDistance = currentDistance;
+        }
+      }
+    },
+    { passive: false }
+  );
+
+  // Reset touch tracking on touch end
+  elements.bookStage.addEventListener("touchend", () => {
+    lastTouchDistance = 0;
+  });
+
+  // macOS trackpad pinch (via GestureEvent)
+  if (typeof GestureEvent !== "undefined") {
+    elements.bookStage.addEventListener(
+      "gesturechange",
+      (event) => {
+        event.preventDefault();
+        // scale > 1 = pinch out (zoom in)
+        // scale < 1 = pinch in (zoom out)
+        const zoomDelta = event.scale > 1 ? 5 : -5;
+        changeZoom(zoomDelta);
+      },
+      { passive: false }
+    );
+  }
 }
 
 function toggleSearchPanel() {
