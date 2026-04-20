@@ -29,69 +29,89 @@
 
       <main class="reader-layout">
         <section class="reader-panel" aria-label="Lettore PDF">
-          <div class="toolbar" aria-label="Controlli PDF">
-            <div class="toolbar-group">
-              <button class="icon-button" type="button" id="prevButton" title="Indietro" aria-label="Indietro">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
-              </button>
-              <label class="page-jump" for="pageInput">
-                <input id="pageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="Pagina" />
-                <span id="totalPages">/ 0</span>
-              </label>
-              <button class="icon-button" type="button" id="nextButton" title="Avanti" aria-label="Avanti">
+          <div class="reader-workspace">
+            <div class="tools-wrap" id="toolsWrap">
+              <div class="tool-rail" id="toolRail" aria-label="Strumenti lettore">
+                <div class="toolbar-group view-group">
+                  <button
+                    class="icon-button"
+                    type="button"
+                    id="searchToggleButton"
+                    title="Nascondi ricerca"
+                    aria-label="Nascondi ricerca"
+                    aria-controls="searchPanel"
+                    aria-expanded="true"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+                    </svg>
+                  </button>
+                  <button class="icon-button" type="button" id="spreadButton" title="Vista libro" aria-label="Vista libro">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4.75 5.75A2 2 0 0 1 6.75 4H11a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H6.75a2 2 0 0 0-2 2V5.75ZM19.25 5.75A2 2 0 0 0 17.25 4H13a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h4.25a2 2 0 0 1 2 2V5.75Z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="toolbar-group zoom-group">
+                  <button class="icon-button" type="button" id="zoomInButton" title="Aumenta zoom" aria-label="Aumenta zoom">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  </button>
+                  <input id="zoomRange" class="zoom-range" type="range" min="75" max="220" step="5" value="100" aria-label="Zoom" />
+                  <button class="icon-button" type="button" id="zoomOutButton" title="Riduci zoom" aria-label="Riduci zoom">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+                  </button>
+                  <span class="zoom-value" id="zoomValue">100%</span>
+                </div>
+              </div>
+
+              <button
+                class="icon-button tools-toggle-button"
+                type="button"
+                id="toolsToggleButton"
+                title="Nascondi strumenti"
+                aria-label="Nascondi strumenti"
+                aria-controls="toolRail"
+                aria-expanded="true"
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
               </button>
             </div>
 
-            <div class="toolbar-group zoom-group">
-              <button class="icon-button" type="button" id="zoomOutButton" title="Riduci zoom" aria-label="Riduci zoom">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
-              </button>
-              <input id="zoomRange" class="zoom-range" type="range" min="75" max="220" step="5" value="100" aria-label="Zoom" />
-              <button class="icon-button" type="button" id="zoomInButton" title="Aumenta zoom" aria-label="Aumenta zoom">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-              </button>
-              <span class="zoom-value" id="zoomValue">100%</span>
-            </div>
-
-            <div class="toolbar-group">
-              <button class="icon-button" type="button" id="spreadButton" title="Vista libro" aria-label="Vista libro">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4.75 5.75A2 2 0 0 1 6.75 4H11a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H6.75a2 2 0 0 0-2 2V5.75ZM19.25 5.75A2 2 0 0 0 17.25 4H13a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h4.25a2 2 0 0 1 2 2V5.75Z" />
-                </svg>
-              </button>
-              <button
-                class="icon-button"
-                type="button"
-                id="searchToggleButton"
-                title="Nascondi ricerca"
-                aria-label="Nascondi ricerca"
-                aria-controls="searchPanel"
-                aria-expanded="true"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="book-stage" id="bookStage">
-            <div class="empty-state" id="emptyState">
-              <div class="empty-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64">
-                  <path d="M14 12h18c4.42 0 8 3.58 8 8v32c0-4.42-3.58-8-8-8H14V12Z" />
-                  <path d="M50 12H32c-4.42 0-8 3.58-8 8v32c0-4.42 3.58-8 8-8h18V12Z" />
-                  <path d="M20 22h10M20 30h10M38 22h6M38 30h6" />
-                </svg>
+            <div class="pdf-column">
+              <div class="book-stage" id="bookStage">
+                <div class="empty-state" id="emptyState">
+                  <div class="empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 64 64">
+                      <path d="M14 12h18c4.42 0 8 3.58 8 8v32c0-4.42-3.58-8-8-8H14V12Z" />
+                      <path d="M50 12H32c-4.42 0-8 3.58-8 8v32c0-4.42 3.58-8 8-8h18V12Z" />
+                      <path d="M20 22h10M20 30h10M38 22h6M38 30h6" />
+                    </svg>
+                  </div>
+                  <p class="empty-title">PDF non disponibile</p>
+                </div>
+                <div class="spread" id="pageSpread" aria-live="polite"></div>
               </div>
-              <p class="empty-title">PDF non disponibile</p>
+
+              <div class="toolbar page-toolbar" aria-label="Controlli PDF">
+                <div class="toolbar-group page-group">
+                  <button class="icon-button" type="button" id="prevButton" title="Indietro" aria-label="Indietro">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+                  </button>
+                  <label class="page-jump" for="pageInput">
+                    <input id="pageInput" min="1" value="1" inputmode="numeric" aria-label="Pagina" />
+                    <span id="totalPages">0</span>
+                  </label>
+                  <button class="icon-button" type="button" id="nextButton" title="Avanti" aria-label="Avanti">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="spread" id="pageSpread" aria-live="polite"></div>
           </div>
 
           <div class="statusbar">
-            <span id="statusText">Pronto</span>
+            <span id="statusText"></span>
           </div>
         </section>
 
