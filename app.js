@@ -236,12 +236,41 @@ function bindEvents() {
 
   // Touch pinch zoom (trackpad or touch device)
   let lastTouchDistance = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchLastX = 0;
+  let touchLastY = 0;
+  let swipeTracking = false;
+
+  elements.bookStage.addEventListener(
+    "touchstart",
+    (event) => {
+      if (!media.matches || event.touches.length !== 1) {
+        swipeTracking = false;
+        return;
+      }
+
+      const touch = event.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchLastX = touch.clientX;
+      touchLastY = touch.clientY;
+      swipeTracking = true;
+    },
+    { passive: true }
+  );
 
   elements.bookStage.addEventListener(
     "touchmove",
     (event) => {
+      if (event.touches.length === 1 && swipeTracking) {
+        touchLastX = event.touches[0].clientX;
+        touchLastY = event.touches[0].clientY;
+      }
+
       if (event.touches.length === 2) {
         event.preventDefault();
+        swipeTracking = false;
 
         const touch1 = event.touches[0];
         const touch2 = event.touches[1];
@@ -271,7 +300,18 @@ function bindEvents() {
 
   // Reset touch tracking on touch end
   elements.bookStage.addEventListener("touchend", () => {
+    if (swipeTracking && media.matches) {
+      const deltaX = touchLastX - touchStartX;
+      const deltaY = touchLastY - touchStartY;
+      const isHorizontalSwipe = Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+
+      if (isHorizontalSwipe) {
+        turnPage(deltaX > 0 ? 1 : -1);
+      }
+    }
+
     lastTouchDistance = 0;
+    swipeTracking = false;
   });
 
   // macOS trackpad pinch (via GestureEvent)
