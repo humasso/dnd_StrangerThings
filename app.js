@@ -482,6 +482,7 @@ function showHome() {
   hideSelectionMenu();
   state.activePanel = null;
   state.activeBookmarkId = null;
+  document.body.classList.add("is-home-view");
   elements.homeScreen.hidden = false;
   elements.readerLayout.hidden = true;
   elements.homeButton.hidden = true;
@@ -489,6 +490,7 @@ function showHome() {
 }
 
 function showReader() {
+  document.body.classList.remove("is-home-view");
   elements.homeScreen.hidden = true;
   elements.readerLayout.hidden = false;
   elements.homeButton.hidden = false;
