@@ -2,7 +2,7 @@ const BOOKS_MANIFEST_URL = "books.json";
 const DEFAULT_BOOK = {
   category: "Play Guide",
   id: "diavolo-metal-muori",
-  pdf: "assets/book.pdf",
+  pdf: "assets/contenuti/book.pdf",
   title: "Diavolo, Metal, Muori",
 };
 const PDFJS_CDN_VERSION = "3.11.174";
@@ -26,7 +26,6 @@ const elements = {
   bookmarksPanel: document.getElementById("bookmarksPanel"),
   bookmarkTitleInput: document.getElementById("bookmarkTitleInput"),
   bookmarkToggleButton: document.getElementById("bookmarkToggleButton"),
-  documentTitle: document.getElementById("documentTitle"),
   emptyState: document.getElementById("emptyState"),
   homeButton: document.getElementById("homeButton"),
   homeScreen: document.getElementById("homeScreen"),
@@ -486,7 +485,6 @@ function showHome() {
   elements.homeScreen.hidden = false;
   elements.readerLayout.hidden = true;
   elements.homeButton.hidden = true;
-  elements.documentTitle.textContent = "Scegli un libretto";
   syncSearchPanelVisibility();
 }
 
@@ -558,7 +556,6 @@ async function loadPdf(source, title) {
     pdf = await loadingTask.promise;
   } catch (error) {
     console.error(error);
-    elements.documentTitle.textContent = title || source;
     elements.emptyState.hidden = false;
     setStatus(`PDF non trovato: ${source}`);
     syncControls();
@@ -573,7 +570,6 @@ async function loadPdf(source, title) {
   state.searchPosition = -1;
   state.bookmarks = loadBookmarks().filter((bookmark) => bookmark.page <= state.totalPages);
 
-  elements.documentTitle.textContent = title || "Documento PDF";
   elements.totalPages.textContent = `/ ${state.totalPages}`;
   elements.pageInput.max = String(state.totalPages);
   elements.searchInput.value = "";

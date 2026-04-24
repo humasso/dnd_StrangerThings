@@ -39,6 +39,17 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
 
 La home legge i libretti da `books.json`. Per aggiungere un PDF:
 
-1. Metti il file in `assets/`.
+1. Metti il file in `assets/contenuti/`.
 2. Aggiungi una voce a `books.json` con `id`, `title`, `category` e `pdf`.
 3. Se vuoi usare una cover personalizzata, aggiungi anche `cover`; altrimenti il sito genera la copertina dalla prima pagina del PDF.
+
+Esempio:
+
+```json
+{
+  "id": "nome-libretto",
+  "title": "Nome Libretto",
+  "category": "Play Guide",
+  "pdf": "assets/contenuti/nome-libretto.pdf"
+}
+```
