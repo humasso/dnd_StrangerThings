@@ -1,9 +1,22 @@
 const DEFAULT_PDF_URL = "assets/book.pdf";
+const BOOKMARK_STORAGE_KEY = `pdf-book-viewer:bookmarks:${DEFAULT_PDF_URL}`;
 const PDFJS_CDN_VERSION = "3.11.174";
 const MIN_QUERY_LENGTH = 2;
 
 const elements = {
   bookStage: document.getElementById("bookStage"),
+  addPageBookmarkButton: document.getElementById("addPageBookmarkButton"),
+  bookmarkCancelButton: document.getElementById("bookmarkCancelButton"),
+  bookmarkContext: document.getElementById("bookmarkContext"),
+  bookmarkCount: document.getElementById("bookmarkCount"),
+  bookmarkDialog: document.getElementById("bookmarkDialog"),
+  bookmarkDialogTitle: document.getElementById("bookmarkDialogTitle"),
+  bookmarkDismissButton: document.getElementById("bookmarkDismissButton"),
+  bookmarkForm: document.getElementById("bookmarkForm"),
+  bookmarkList: document.getElementById("bookmarkList"),
+  bookmarksPanel: document.getElementById("bookmarksPanel"),
+  bookmarkTitleInput: document.getElementById("bookmarkTitleInput"),
+  bookmarkToggleButton: document.getElementById("bookmarkToggleButton"),
   documentTitle: document.getElementById("documentTitle"),
   emptyState: document.getElementById("emptyState"),
   nextButton: document.getElementById("nextButton"),
@@ -18,6 +31,9 @@ const elements = {
   searchInput: document.getElementById("searchInput"),
   searchPanel: document.getElementById("searchPanel"),
   searchToggleButton: document.getElementById("searchToggleButton"),
+  selectionBookmarkButton: document.getElementById("selectionBookmarkButton"),
+  selectionMenu: document.getElementById("selectionMenu"),
+  sidePanel: document.getElementById("sidePanel"),
   spreadButton: document.getElementById("spreadButton"),
   statusText: document.getElementById("statusText"),
   toolRail: document.getElementById("toolRail"),
@@ -31,12 +47,16 @@ const elements = {
 };
 
 const state = {
+  activeBookmarkId: null,
+  activePanel: null,
+  bookmarks: [],
   currentPage: 1,
   direction: "forward",
-  isSearchPanelVisible: false,
   isToolsVisible: true,
   isSpread: false,
   pageTextCache: new Map(),
+  pendingBookmarkDraft: null,
+  pendingBookmarkScrollId: null,
   pdf: null,
   renderId: 0,
   searchMatches: [],
@@ -61,9 +81,11 @@ function boot() {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_CDN_VERSION}/pdf.worker.min.js`;
 
+  state.bookmarks = loadBookmarks();
   bindEvents();
   syncSearchPanelVisibility();
   syncToolsVisibility();
+  renderBookmarkList();
   syncControls();
   resizeObserver.observe(elements.bookStage);
   loadInitialDocument();
@@ -94,11 +116,41 @@ function bindEvents() {
   });
 
   elements.searchToggleButton.addEventListener("click", () => {
-    toggleSearchPanel();
+    togglePanel("search");
+  });
+
+  elements.bookmarkToggleButton.addEventListener("click", () => {
+    togglePanel("bookmarks");
+  });
+
+  elements.addPageBookmarkButton.addEventListener("click", () => {
+    openBookmarkDialog(createPageBookmarkDraft());
   });
 
   elements.toolsToggleButton.addEventListener("click", () => {
     toggleToolsVisibility();
+  });
+
+  elements.bookmarkForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    savePendingBookmark();
+  });
+
+  elements.bookmarkCancelButton.addEventListener("click", closeBookmarkDialog);
+  elements.bookmarkDismissButton.addEventListener("click", closeBookmarkDialog);
+  elements.bookmarkDialog.addEventListener("close", () => {
+    state.pendingBookmarkDraft = null;
+  });
+
+  elements.selectionBookmarkButton.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+
+  elements.selectionBookmarkButton.addEventListener("click", () => {
+    const draft = createTextBookmarkDraft();
+    if (draft) {
+      openBookmarkDialog(draft);
+    }
   });
 
   elements.searchInput.addEventListener("input", () => {
@@ -109,7 +161,25 @@ function bindEvents() {
   elements.prevResultButton.addEventListener("click", () => moveSearchResult(-1));
   elements.nextResultButton.addEventListener("click", () => moveSearchResult(1));
 
+  elements.bookStage.addEventListener("mouseup", () => {
+    window.setTimeout(updateSelectionMenu, 0);
+  });
+
+  elements.bookStage.addEventListener("keyup", () => {
+    window.setTimeout(updateSelectionMenu, 0);
+  });
+
+  document.addEventListener("mousedown", (event) => {
+    if (!elements.selectionMenu.contains(event.target)) {
+      hideSelectionMenu();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
+    if (elements.bookmarkDialog.open) {
+      return;
+    }
+
     if (event.target instanceof HTMLInputElement) {
       return;
     }
@@ -202,21 +272,35 @@ function bindEvents() {
   }
 }
 
-function toggleSearchPanel() {
-  state.isSearchPanelVisible = !state.isSearchPanelVisible;
+function togglePanel(panelName) {
+  state.activePanel = state.activePanel === panelName ? null : panelName;
   syncSearchPanelVisibility();
   scheduleRender();
 }
 
 function syncSearchPanelVisibility() {
-  elements.readerLayout.classList.toggle("search-hidden", !state.isSearchPanelVisible);
-  elements.searchPanel.hidden = !state.isSearchPanelVisible;
-  elements.searchToggleButton.classList.toggle("is-active", state.isSearchPanelVisible);
-  elements.searchToggleButton.setAttribute("aria-expanded", String(state.isSearchPanelVisible));
+  const isPanelVisible = Boolean(state.activePanel);
+  const isSearchVisible = state.activePanel === "search";
+  const isBookmarksVisible = state.activePanel === "bookmarks";
 
-  const actionLabel = state.isSearchPanelVisible ? "Nascondi ricerca" : "Mostra ricerca";
+  elements.readerLayout.classList.toggle("search-hidden", !isPanelVisible);
+  elements.sidePanel.hidden = !isPanelVisible;
+  elements.searchPanel.hidden = !isSearchVisible;
+  elements.bookmarksPanel.hidden = !isBookmarksVisible;
+
+  elements.searchToggleButton.classList.toggle("is-active", isSearchVisible);
+  elements.searchToggleButton.setAttribute("aria-expanded", String(isSearchVisible));
+
+  elements.bookmarkToggleButton.classList.toggle("is-active", isBookmarksVisible);
+  elements.bookmarkToggleButton.setAttribute("aria-expanded", String(isBookmarksVisible));
+
+  const actionLabel = isSearchVisible ? "Nascondi ricerca" : "Mostra ricerca";
   elements.searchToggleButton.title = actionLabel;
   elements.searchToggleButton.setAttribute("aria-label", actionLabel);
+
+  const bookmarkActionLabel = isBookmarksVisible ? "Nascondi segnalibri" : "Mostra segnalibri";
+  elements.bookmarkToggleButton.title = bookmarkActionLabel;
+  elements.bookmarkToggleButton.setAttribute("aria-label", bookmarkActionLabel);
 }
 
 function toggleToolsVisibility() {
@@ -258,6 +342,7 @@ async function loadPdf(source, title) {
   state.pageTextCache.clear();
   state.searchMatches = [];
   state.searchPosition = -1;
+  state.bookmarks = loadBookmarks().filter((bookmark) => bookmark.page <= state.totalPages);
 
   elements.documentTitle.textContent = title || "Documento PDF";
   elements.totalPages.textContent = `/ ${state.totalPages}`;
@@ -266,6 +351,7 @@ async function loadPdf(source, title) {
   elements.resultList.replaceChildren();
   elements.searchCount.textContent = "0 risultati";
 
+  renderBookmarkList();
   setStatus(`${state.totalPages} pagine`);
   syncControls();
   await renderSpread();
@@ -367,6 +453,7 @@ async function renderSpread() {
 
     if (renderId === state.renderId) {
       applySearchHighlights();
+      scrollToPendingBookmark();
       setStatus("Pronto");
     }
   } catch (error) {
@@ -451,12 +538,17 @@ async function renderPage(pageNumber, shell, scale, renderId) {
   textLayer.style.height = `${viewport.height}px`;
   textLayer.style.setProperty("--scale-factor", String(scale));
 
+  const highlightLayer = document.createElement("div");
+  highlightLayer.className = "highlightLayer";
+  highlightLayer.style.width = `${viewport.width}px`;
+  highlightLayer.style.height = `${viewport.height}px`;
+
   const linkLayer = document.createElement("div");
   linkLayer.className = "linkLayer";
   linkLayer.style.width = `${viewport.width}px`;
   linkLayer.style.height = `${viewport.height}px`;
 
-  shell.append(canvas, textLayer, linkLayer);
+  shell.append(canvas, highlightLayer, textLayer, linkLayer);
 
   const context = canvas.getContext("2d", { alpha: false });
   await page.render({
@@ -477,6 +569,34 @@ async function renderPage(pageNumber, shell, scale, renderId) {
 
   const annotations = await page.getAnnotations({ intent: "display" });
   renderLinkLayer(annotations, linkLayer, viewport);
+  renderBookmarkHighlights(pageNumber, highlightLayer);
+}
+
+function renderBookmarkHighlights(pageNumber, container) {
+  const fragment = document.createDocumentFragment();
+  const pageBookmarks = state.bookmarks.filter(
+    (bookmark) => bookmark.type === "text" && bookmark.page === pageNumber && Array.isArray(bookmark.rects),
+  );
+
+  pageBookmarks.forEach((bookmark) => {
+    bookmark.rects.forEach((rect) => {
+      const highlight = document.createElement("button");
+      highlight.type = "button";
+      highlight.className = "saved-highlight";
+      highlight.dataset.bookmarkId = bookmark.id;
+      highlight.title = bookmark.title;
+      highlight.setAttribute("aria-label", bookmark.title);
+      highlight.style.left = `${rect.left * 100}%`;
+      highlight.style.top = `${rect.top * 100}%`;
+      highlight.style.width = `${rect.width * 100}%`;
+      highlight.style.height = `${rect.height * 100}%`;
+      highlight.classList.toggle("is-active", state.activeBookmarkId === bookmark.id);
+      highlight.addEventListener("click", () => activateBookmark(bookmark.id));
+      fragment.append(highlight);
+    });
+  });
+
+  container.replaceChildren(fragment);
 }
 
 function renderLinkLayer(annotations, container, viewport) {
@@ -546,6 +666,320 @@ function changeZoom(delta) {
   elements.zoomRange.value = String(nextZoom);
   elements.zoomValue.textContent = `${nextZoom}%`;
   scheduleRender();
+}
+
+function createPageBookmarkDraft() {
+  const visiblePages = getVisiblePages();
+  const page = visiblePages[0] || state.currentPage;
+  return {
+    page,
+    rects: [],
+    snippet: "",
+    title: `Pagina ${page}`,
+    type: "page",
+  };
+}
+
+function createTextBookmarkDraft() {
+  const selectionData = getCurrentTextSelection();
+  if (!selectionData) {
+    hideSelectionMenu();
+    return null;
+  }
+
+  return {
+    page: selectionData.page,
+    rects: selectionData.rects,
+    snippet: selectionData.text,
+    title: truncateText(selectionData.text, 58) || `Pagina ${selectionData.page}`,
+    type: "text",
+  };
+}
+
+function openBookmarkDialog(draft) {
+  if (!draft || !state.pdf) {
+    return;
+  }
+
+  state.pendingBookmarkDraft = draft;
+  elements.bookmarkDialogTitle.textContent = draft.type === "text" ? "Segnalibro su testo" : "Segnalibro pagina";
+  elements.bookmarkTitleInput.value = draft.title;
+  elements.bookmarkContext.textContent = draft.type === "text"
+    ? `Pagina ${draft.page}: ${draft.snippet}`
+    : `Pagina ${draft.page}`;
+
+  elements.bookmarkDialog.showModal();
+  elements.bookmarkTitleInput.focus();
+  elements.bookmarkTitleInput.select();
+}
+
+function closeBookmarkDialog() {
+  state.pendingBookmarkDraft = null;
+  if (elements.bookmarkDialog.open) {
+    elements.bookmarkDialog.close();
+  }
+}
+
+function savePendingBookmark() {
+  const draft = state.pendingBookmarkDraft;
+  if (!draft) {
+    return;
+  }
+
+  const title = elements.bookmarkTitleInput.value.trim() || draft.title || `Pagina ${draft.page}`;
+  const bookmark = {
+    createdAt: Date.now(),
+    id: createId(),
+    page: draft.page,
+    rects: draft.rects || [],
+    snippet: draft.snippet || "",
+    title,
+    type: draft.type,
+  };
+
+  state.bookmarks.push(bookmark);
+  state.activeBookmarkId = bookmark.id;
+  sortBookmarks();
+  saveBookmarks();
+  renderBookmarkList();
+  state.activePanel = "bookmarks";
+  syncSearchPanelVisibility();
+  closeBookmarkDialog();
+  hideSelectionMenu();
+  window.getSelection()?.removeAllRanges();
+  scheduleRender();
+  setStatus("Segnalibro salvato");
+}
+
+function loadBookmarks() {
+  try {
+    const raw = localStorage.getItem(BOOKMARK_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(isValidBookmark) : [];
+  } catch (error) {
+    console.warn("Segnalibri non leggibili", error);
+    return [];
+  }
+}
+
+function saveBookmarks() {
+  try {
+    localStorage.setItem(BOOKMARK_STORAGE_KEY, JSON.stringify(state.bookmarks));
+  } catch (error) {
+    console.warn("Segnalibri non salvati", error);
+    setStatus("Impossibile salvare il segnalibro");
+  }
+}
+
+function isValidBookmark(bookmark) {
+  return bookmark
+    && typeof bookmark.id === "string"
+    && Number.isFinite(bookmark.page)
+    && bookmark.page >= 1
+    && typeof bookmark.title === "string";
+}
+
+function sortBookmarks() {
+  state.bookmarks.sort((first, second) => first.page - second.page || (first.createdAt || 0) - (second.createdAt || 0));
+}
+
+function renderBookmarkList() {
+  sortBookmarks();
+  elements.bookmarkCount.textContent = String(state.bookmarks.length);
+
+  if (!state.bookmarks.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-list";
+    empty.textContent = "Nessun segnalibro";
+    elements.bookmarkList.replaceChildren(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  state.bookmarks.forEach((bookmark) => {
+    const item = document.createElement("div");
+    item.className = "bookmark-item";
+    item.classList.toggle("is-active", state.activeBookmarkId === bookmark.id);
+    item.dataset.bookmarkId = bookmark.id;
+
+    const main = document.createElement("button");
+    main.type = "button";
+    main.className = "bookmark-main";
+    main.addEventListener("click", () => activateBookmark(bookmark.id));
+
+    const title = document.createElement("span");
+    title.className = "bookmark-title";
+    title.textContent = bookmark.title;
+
+    const meta = document.createElement("span");
+    meta.className = "bookmark-meta";
+    meta.textContent = bookmark.type === "text" ? `Pagina ${bookmark.page} - testo` : `Pagina ${bookmark.page}`;
+
+    main.append(title, meta);
+
+    if (bookmark.snippet) {
+      const snippet = document.createElement("span");
+      snippet.className = "bookmark-snippet";
+      snippet.textContent = bookmark.snippet;
+      main.append(snippet);
+    }
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "icon-button bookmark-delete";
+    remove.title = "Elimina segnalibro";
+    remove.setAttribute("aria-label", "Elimina segnalibro");
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>';
+    remove.addEventListener("click", () => deleteBookmark(bookmark.id));
+
+    item.append(main, remove);
+    fragment.append(item);
+  });
+
+  elements.bookmarkList.replaceChildren(fragment);
+}
+
+function activateBookmark(bookmarkId) {
+  const bookmark = state.bookmarks.find((item) => item.id === bookmarkId);
+  if (!bookmark) {
+    return;
+  }
+
+  state.activeBookmarkId = bookmark.id;
+  state.pendingBookmarkScrollId = bookmark.id;
+  state.activePanel = "bookmarks";
+  syncSearchPanelVisibility();
+  renderBookmarkList();
+  goToPage(bookmark.page);
+}
+
+function deleteBookmark(bookmarkId) {
+  state.bookmarks = state.bookmarks.filter((bookmark) => bookmark.id !== bookmarkId);
+  if (state.activeBookmarkId === bookmarkId) {
+    state.activeBookmarkId = null;
+  }
+  saveBookmarks();
+  renderBookmarkList();
+  scheduleRender();
+}
+
+function scrollToPendingBookmark() {
+  if (!state.pendingBookmarkScrollId) {
+    return;
+  }
+
+  const bookmark = state.bookmarks.find((item) => item.id === state.pendingBookmarkScrollId);
+  const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${bookmark?.page}"]`);
+  if (!bookmark || !shell) {
+    return;
+  }
+
+  const firstRect = bookmark.rects?.[0];
+  const top = shell.offsetTop + (firstRect ? firstRect.top * shell.clientHeight : 0) - 72;
+  const left = shell.offsetLeft + (firstRect ? firstRect.left * shell.clientWidth : 0) - 72;
+  elements.bookStage.scrollTo({
+    left: Math.max(0, left),
+    top: Math.max(0, top),
+    behavior: "smooth",
+  });
+
+  elements.pageSpread.querySelectorAll(".saved-highlight").forEach((highlight) => {
+    highlight.classList.toggle("is-active", highlight.dataset.bookmarkId === bookmark.id);
+  });
+
+  state.pendingBookmarkScrollId = null;
+}
+
+function getCurrentTextSelection() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) {
+    return null;
+  }
+
+  const text = selection.toString().replace(/\s+/g, " ").trim();
+  if (!text) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  const shell = getSelectionPageShell(selection);
+  if (!shell) {
+    return null;
+  }
+
+  const page = Number.parseInt(shell.dataset.page, 10);
+  const rects = getSelectionRects(range, shell);
+  if (!Number.isFinite(page) || !rects.length) {
+    return null;
+  }
+
+  return { page, rects, text };
+}
+
+function getSelectionPageShell(selection) {
+  const anchorShell = getClosestPageShell(selection.anchorNode);
+  const focusShell = getClosestPageShell(selection.focusNode);
+  return anchorShell || focusShell;
+}
+
+function getClosestPageShell(node) {
+  const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+  return element?.closest(".page-shell") || null;
+}
+
+function getSelectionRects(range, shell) {
+  const shellRect = shell.getBoundingClientRect();
+  return Array.from(range.getClientRects())
+    .map((rect) => {
+      const left = Math.max(rect.left, shellRect.left);
+      const top = Math.max(rect.top, shellRect.top);
+      const right = Math.min(rect.right, shellRect.right);
+      const bottom = Math.min(rect.bottom, shellRect.bottom);
+      return {
+        height: bottom - top,
+        left: left - shellRect.left,
+        top: top - shellRect.top,
+        width: right - left,
+      };
+    })
+    .filter((rect) => rect.width > 2 && rect.height > 2)
+    .map((rect) => ({
+      height: clamp(roundRatio(rect.height / shellRect.height), 0, 1),
+      left: clamp(roundRatio(rect.left / shellRect.width), 0, 1),
+      top: clamp(roundRatio(rect.top / shellRect.height), 0, 1),
+      width: clamp(roundRatio(rect.width / shellRect.width), 0, 1),
+    }));
+}
+
+function updateSelectionMenu() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) {
+    hideSelectionMenu();
+    return;
+  }
+
+  const shell = getSelectionPageShell(selection);
+  if (!shell || !elements.bookStage.contains(shell)) {
+    hideSelectionMenu();
+    return;
+  }
+
+  const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
+  if (!rangeRect.width && !rangeRect.height) {
+    hideSelectionMenu();
+    return;
+  }
+
+  elements.selectionMenu.hidden = false;
+  const menuRect = elements.selectionMenu.getBoundingClientRect();
+  const left = clamp(rangeRect.left + rangeRect.width / 2 - menuRect.width / 2, 8, window.innerWidth - menuRect.width - 8);
+  const top = clamp(rangeRect.top - menuRect.height - 8, 8, window.innerHeight - menuRect.height - 8);
+  elements.selectionMenu.style.left = `${left}px`;
+  elements.selectionMenu.style.top = `${top}px`;
+}
+
+function hideSelectionMenu() {
+  elements.selectionMenu.hidden = true;
 }
 
 async function runSearch() {
@@ -715,6 +1149,8 @@ function syncControls() {
   elements.zoomOutButton.disabled = !hasDocument;
   elements.zoomRange.disabled = !hasDocument;
   elements.spreadButton.disabled = !hasDocument;
+  elements.addPageBookmarkButton.disabled = !hasDocument;
+  elements.bookmarkToggleButton.disabled = !hasDocument;
   elements.searchInput.disabled = !hasDocument;
   elements.prevResultButton.disabled = !state.searchMatches.length;
   elements.nextResultButton.disabled = !state.searchMatches.length;
@@ -729,4 +1165,17 @@ function setStatus(message) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function roundRatio(value) {
+  return Math.round(value * 10000) / 10000;
+}
+
+function truncateText(value, maxLength) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
+}
+
+function createId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }

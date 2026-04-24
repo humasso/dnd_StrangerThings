@@ -15,6 +15,7 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
 
 - Ricerca full-text nel PDF
 - Zoom e Visualizzazione
+- Segnalibri personalizzati su pagina o testo evidenziato
 - **Modalità spread (libro)** per visualizzare due pagine affiancate
 - Responsivo su tutti i dispositivi
 
@@ -27,8 +28,9 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
 
 ## 📋 TODO
 
-- [ ] Aggiungere bookmarks (segnalibri personalizzati)
-- [ ] Supporto per annotazioni/highlights
+- [x] Aggiungere bookmarks (segnalibri personalizzati)
+  - [ ] Risolvere Bug aggiuntga bookmark con visualizzazione a 2 pagine
+- [x] Supporto per annotazioni/highlights
 - [ ] Animazioni (aggiungere barra del progresso + )
 - [ ] Tematizzato "Stranger Things: Welcome to the Hellfire Club"
 - [ ] Dark mode
