@@ -32,5 +32,13 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
   - [ ] Risolvere Bug aggiuntga bookmark con visualizzazione a 2 pagine
 - [x] Supporto per annotazioni/highlights
 - [ ] Animazioni (aggiungere barra del progresso + )
-- [ ] Tematizzato "Stranger Things: Welcome to the Hellfire Club"
+- [x] Tematizzato "Stranger Things: Welcome to the Hellfire Club"
 - [ ] Dark mode
+
+## Libreria PDF
+
+La home legge i libretti da `books.json`. Per aggiungere un PDF:
+
+1. Metti il file in `assets/`.
+2. Aggiungi una voce a `books.json` con `id`, `title`, `category` e `pdf`.
+3. Se vuoi usare una cover personalizzata, aggiungi anche `cover`; altrimenti il sito genera la copertina dalla prima pagina del PDF.

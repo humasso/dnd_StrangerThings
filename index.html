@@ -13,21 +13,34 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand" aria-label="PDF Book Viewer">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 28 28" role="img">
-              <path d="M5 5.5C5 4.67 5.67 4 6.5 4H13c1.25 0 2.34.57 3 1.45C16.66 4.57 17.75 4 19 4h2.5c.83 0 1.5.67 1.5 1.5v17c0 .83-.67 1.5-1.5 1.5H19c-1.25 0-2.34.57-3 1.45C15.34 24.57 14.25 24 13 24H6.5C5.67 24 5 23.33 5 22.5v-17Z" />
-              <path d="M16 5.45v20M8.5 8H13m-4.5 4H13m5.5-4H21m-2.5 4H21" />
-            </svg>
-          </span>
-          <span class="brand-copy">
-            <span class="brand-title">PDF Book Viewer</span>
-            <span class="brand-subtitle" id="documentTitle">assets/book.pdf</span>
-          </span>
+        <button class="icon-button home-button" type="button" id="homeButton" title="Torna ai libretti" aria-label="Torna ai libretti" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+        </button>
+        <div class="brand-strip" aria-label="Welcome to the Hellfire Club">
+          <span class="brand-lockup side-lockup">Dungeons<br />&amp; Dragons</span>
+          <span class="hellfire-title">Welcome to the<br /><strong>Hellfire Club</strong></span>
+          <span class="brand-lockup side-lockup">Stranger<br />Things</span>
         </div>
+        <span class="document-chip" id="documentTitle">Scegli un libretto</span>
       </header>
 
-      <main class="reader-layout">
+      <main class="home-screen" id="homeScreen">
+        <section class="hellfire-frame" aria-label="Libreria PDF">
+          <h1>Libretti</h1>
+          <div class="carousel-shell">
+            <button class="carousel-nav carousel-prev" type="button" id="carouselPrevButton" title="Libretto precedente" aria-label="Libretto precedente">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+            </button>
+            <div class="book-carousel" id="bookCarousel" aria-live="polite"></div>
+            <button class="carousel-nav carousel-next" type="button" id="carouselNextButton" title="Libretto successivo" aria-label="Libretto successivo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+            </button>
+          </div>
+          <div class="carousel-dots" id="carouselDots" aria-label="Selezione libretto"></div>
+        </section>
+      </main>
+
+      <main class="reader-layout" id="readerLayout" hidden>
         <section class="reader-panel" aria-label="Lettore PDF">
           <div class="reader-workspace">
             <div class="tools-wrap" id="toolsWrap">

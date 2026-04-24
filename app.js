@@ -1,11 +1,20 @@
-const DEFAULT_PDF_URL = "assets/book.pdf";
-const BOOKMARK_STORAGE_KEY = `pdf-book-viewer:bookmarks:${DEFAULT_PDF_URL}`;
+const BOOKS_MANIFEST_URL = "books.json";
+const DEFAULT_BOOK = {
+  category: "Play Guide",
+  id: "diavolo-metal-muori",
+  pdf: "assets/book.pdf",
+  title: "Diavolo, Metal, Muori",
+};
 const PDFJS_CDN_VERSION = "3.11.174";
 const MIN_QUERY_LENGTH = 2;
 
 const elements = {
   bookStage: document.getElementById("bookStage"),
   addPageBookmarkButton: document.getElementById("addPageBookmarkButton"),
+  bookCarousel: document.getElementById("bookCarousel"),
+  carouselDots: document.getElementById("carouselDots"),
+  carouselNextButton: document.getElementById("carouselNextButton"),
+  carouselPrevButton: document.getElementById("carouselPrevButton"),
   bookmarkCancelButton: document.getElementById("bookmarkCancelButton"),
   bookmarkContext: document.getElementById("bookmarkContext"),
   bookmarkCount: document.getElementById("bookmarkCount"),
@@ -19,13 +28,15 @@ const elements = {
   bookmarkToggleButton: document.getElementById("bookmarkToggleButton"),
   documentTitle: document.getElementById("documentTitle"),
   emptyState: document.getElementById("emptyState"),
+  homeButton: document.getElementById("homeButton"),
+  homeScreen: document.getElementById("homeScreen"),
   nextButton: document.getElementById("nextButton"),
   nextResultButton: document.getElementById("nextResultButton"),
   pageInput: document.getElementById("pageInput"),
   pageSpread: document.getElementById("pageSpread"),
   prevButton: document.getElementById("prevButton"),
   prevResultButton: document.getElementById("prevResultButton"),
-  readerLayout: document.querySelector(".reader-layout"),
+  readerLayout: document.getElementById("readerLayout"),
   resultList: document.getElementById("resultList"),
   searchCount: document.getElementById("searchCount"),
   searchInput: document.getElementById("searchInput"),
@@ -50,10 +61,13 @@ const state = {
   activeBookmarkId: null,
   activePanel: null,
   bookmarks: [],
+  books: [],
+  currentBook: null,
   currentPage: 1,
   direction: "forward",
   isToolsVisible: true,
   isSpread: false,
+  selectedBookIndex: 0,
   pageTextCache: new Map(),
   pendingBookmarkDraft: null,
   pendingBookmarkScrollId: null,
@@ -81,17 +95,22 @@ function boot() {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_CDN_VERSION}/pdf.worker.min.js`;
 
-  state.bookmarks = loadBookmarks();
   bindEvents();
+  showHome();
   syncSearchPanelVisibility();
   syncToolsVisibility();
   renderBookmarkList();
   syncControls();
   resizeObserver.observe(elements.bookStage);
-  loadInitialDocument();
+  loadLibrary();
 }
 
 function bindEvents() {
+  elements.homeButton.addEventListener("click", showHome);
+  elements.carouselPrevButton.addEventListener("click", () => moveCarousel(-1));
+  elements.carouselNextButton.addEventListener("click", () => moveCarousel(1));
+  bindCarouselSwipe();
+
   elements.prevButton.addEventListener("click", () => turnPage(-1));
   elements.nextButton.addEventListener("click", () => turnPage(1));
 
@@ -272,6 +291,212 @@ function bindEvents() {
   }
 }
 
+async function loadLibrary() {
+  setStatus("Caricamento libretti...");
+
+  try {
+    const response = await fetch(BOOKS_MANIFEST_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Manifest non disponibile: ${response.status}`);
+    }
+
+    const books = await response.json();
+    state.books = normalizeBooks(books);
+  } catch (error) {
+    console.warn("Uso libreria predefinita", error);
+    state.books = [DEFAULT_BOOK];
+  }
+
+  state.selectedBookIndex = clamp(state.selectedBookIndex, 0, Math.max(0, state.books.length - 1));
+  renderLibrary();
+  setStatus("");
+}
+
+function normalizeBooks(books) {
+  const normalized = Array.isArray(books) ? books : [];
+  const validBooks = normalized
+    .map((book, index) => ({
+      category: book.category || "Libretto",
+      cover: book.cover || "",
+      id: book.id || createBookId(book.pdf, index),
+      pdf: book.pdf,
+      title: book.title || `Libretto ${index + 1}`,
+    }))
+    .filter((book) => typeof book.pdf === "string" && book.pdf.trim());
+
+  return validBooks.length ? validBooks : [DEFAULT_BOOK];
+}
+
+function renderLibrary() {
+  const fragment = document.createDocumentFragment();
+  const dots = document.createDocumentFragment();
+  const total = state.books.length;
+
+  state.books.forEach((book, index) => {
+    const offset = getCarouselOffset(index, state.selectedBookIndex, total);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "book-card";
+    card.style.setProperty("--offset", String(offset));
+    card.style.setProperty("--abs-offset", String(Math.abs(offset)));
+    card.style.zIndex = String(30 - Math.abs(offset));
+    card.dataset.index = String(index);
+    card.setAttribute("aria-label", `Apri ${book.title}`);
+    if (index === state.selectedBookIndex) {
+      card.setAttribute("aria-current", "true");
+    } else {
+      card.removeAttribute("aria-current");
+    }
+    card.addEventListener("click", () => openBook(index));
+
+    const cover = document.createElement("div");
+    cover.className = "book-cover";
+
+    if (book.cover) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = book.cover;
+      cover.append(image);
+    } else {
+      const canvas = document.createElement("canvas");
+      canvas.className = "cover-canvas";
+      cover.append(canvas);
+      renderBookCover(book, canvas);
+    }
+
+    const category = document.createElement("span");
+    category.className = "book-category";
+    category.textContent = book.category;
+
+    const title = document.createElement("span");
+    title.className = "book-title";
+    title.textContent = book.title;
+
+    card.append(cover, category, title);
+    fragment.append(card);
+
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "carousel-dot";
+    dot.classList.toggle("is-active", index === state.selectedBookIndex);
+    dot.title = book.title;
+    dot.setAttribute("aria-label", book.title);
+    dot.addEventListener("click", () => selectBook(index));
+    dots.append(dot);
+  });
+
+  elements.bookCarousel.replaceChildren(fragment);
+  elements.carouselDots.replaceChildren(dots);
+  elements.carouselPrevButton.disabled = total <= 1;
+  elements.carouselNextButton.disabled = total <= 1;
+}
+
+function getCarouselOffset(index, selectedIndex, total) {
+  if (total <= 1) {
+    return 0;
+  }
+
+  const rawOffset = index - selectedIndex;
+  const wrappedOffset = rawOffset > total / 2
+    ? rawOffset - total
+    : rawOffset < -total / 2
+      ? rawOffset + total
+      : rawOffset;
+
+  return clamp(wrappedOffset, -2, 2);
+}
+
+function selectBook(index) {
+  if (!state.books.length) {
+    return;
+  }
+
+  state.selectedBookIndex = (index + state.books.length) % state.books.length;
+  renderLibrary();
+}
+
+function moveCarousel(delta) {
+  selectBook(state.selectedBookIndex + delta);
+}
+
+function bindCarouselSwipe() {
+  let startX = 0;
+  let startY = 0;
+
+  elements.bookCarousel.addEventListener("pointerdown", (event) => {
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  elements.bookCarousel.addEventListener("pointerup", (event) => {
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      moveCarousel(deltaX < 0 ? 1 : -1);
+    }
+  });
+}
+
+async function renderBookCover(book, canvas) {
+  try {
+    const pdf = await pdfjsLib.getDocument(book.pdf).promise;
+    const page = await pdf.getPage(1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const coverWidth = 260;
+    const scale = coverWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const pixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(viewport.width * pixelRatio);
+    canvas.height = Math.floor(viewport.height * pixelRatio);
+    canvas.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
+    await page.render({
+      canvasContext: canvas.getContext("2d", { alpha: false }),
+      transform: pixelRatio !== 1 ? [pixelRatio, 0, 0, pixelRatio, 0, 0] : null,
+      viewport,
+    }).promise;
+  } catch (error) {
+    console.warn(`Copertina non disponibile per ${book.title}`, error);
+    canvas.replaceWith(createCoverFallback(book));
+  }
+}
+
+function createCoverFallback(book) {
+  const fallback = document.createElement("div");
+  fallback.className = "cover-fallback";
+  fallback.textContent = book.title;
+  return fallback;
+}
+
+async function openBook(index) {
+  const book = state.books[index];
+  if (!book) {
+    return;
+  }
+
+  state.selectedBookIndex = index;
+  state.currentBook = book;
+  showReader();
+  await loadPdf(book.pdf, book.title);
+}
+
+function showHome() {
+  hideSelectionMenu();
+  state.activePanel = null;
+  state.activeBookmarkId = null;
+  elements.homeScreen.hidden = false;
+  elements.readerLayout.hidden = true;
+  elements.homeButton.hidden = true;
+  elements.documentTitle.textContent = "Scegli un libretto";
+  syncSearchPanelVisibility();
+}
+
+function showReader() {
+  elements.homeScreen.hidden = true;
+  elements.readerLayout.hidden = false;
+  elements.homeButton.hidden = false;
+  syncSearchPanelVisibility();
+}
+
 function togglePanel(panelName) {
   state.activePanel = state.activePanel === panelName ? null : panelName;
   syncSearchPanelVisibility();
@@ -320,21 +545,25 @@ function syncToolsVisibility() {
   elements.toolsToggleButton.setAttribute("aria-label", actionLabel);
 }
 
-async function loadInitialDocument() {
-  try {
-    await loadPdf(DEFAULT_PDF_URL, DEFAULT_PDF_URL);
-  } catch (error) {
-    console.error(error);
-    elements.documentTitle.textContent = DEFAULT_PDF_URL;
-    setStatus("PDF non trovato in assets/book.pdf");
-    syncControls();
-  }
-}
-
 async function loadPdf(source, title) {
   setStatus("Caricamento PDF...");
-  const loadingTask = pdfjsLib.getDocument(source);
-  const pdf = await loadingTask.promise;
+  state.pdf = null;
+  state.totalPages = 0;
+  elements.pageSpread.replaceChildren();
+
+  let pdf;
+
+  try {
+    const loadingTask = pdfjsLib.getDocument(source);
+    pdf = await loadingTask.promise;
+  } catch (error) {
+    console.error(error);
+    elements.documentTitle.textContent = title || source;
+    elements.emptyState.hidden = false;
+    setStatus(`PDF non trovato: ${source}`);
+    syncControls();
+    return;
+  }
 
   state.pdf = pdf;
   state.totalPages = pdf.numPages;
@@ -753,7 +982,7 @@ function savePendingBookmark() {
 
 function loadBookmarks() {
   try {
-    const raw = localStorage.getItem(BOOKMARK_STORAGE_KEY);
+    const raw = localStorage.getItem(getBookmarkStorageKey());
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter(isValidBookmark) : [];
   } catch (error) {
@@ -764,11 +993,16 @@ function loadBookmarks() {
 
 function saveBookmarks() {
   try {
-    localStorage.setItem(BOOKMARK_STORAGE_KEY, JSON.stringify(state.bookmarks));
+    localStorage.setItem(getBookmarkStorageKey(), JSON.stringify(state.bookmarks));
   } catch (error) {
     console.warn("Segnalibri non salvati", error);
     setStatus("Impossibile salvare il segnalibro");
   }
+}
+
+function getBookmarkStorageKey() {
+  const bookKey = state.currentBook?.id || state.currentBook?.pdf || DEFAULT_BOOK.id;
+  return `pdf-book-viewer:bookmarks:${bookKey}`;
 }
 
 function isValidBookmark(bookmark) {
@@ -1178,4 +1412,11 @@ function truncateText(value, maxLength) {
 
 function createId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function createBookId(pdfPath, index) {
+  return (pdfPath || `book-${index + 1}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || `book-${index + 1}`;
 }
