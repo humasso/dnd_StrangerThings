@@ -5,6 +5,7 @@
     box-sizing: border-box;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap');
 html, body {
     height: 100%;
 }
@@ -48,7 +49,7 @@ header {
 }
 
 .header-img {
-    height: 52px;
+    height: 25px;
     width: auto;
     object-fit: contain;
 }
@@ -90,7 +91,7 @@ button.card {
 }
 
 .header-center .header-img {
-    height: 68px;
+    height: 58px;
     width: auto;
     object-fit: contain;
 }
@@ -158,18 +159,23 @@ main::before {
 }
 
 .card-icon {
+    --icon-saturation: 1;
     width: 88%;
     max-width: 200px;
     object-fit: contain;
     position: relative;
     z-index: 2;
     margin-bottom: -55px;
-    filter: drop-shadow(rgba(0, 0, 0, 0.8) 0px 10px 20px);
+    filter: saturate(var(--icon-saturation)) drop-shadow(rgba(0, 0, 0, 0.8) 0px 10px 20px);
     transition: filter 0.22s;
 }
 
 .card:hover .card-icon {
-    filter: drop-shadow(rgba(0, 0, 0, 0.9) 0px 14px 28px);
+    filter: saturate(var(--icon-saturation)) drop-shadow(rgba(0, 0, 0, 0.9) 0px 14px 28px);
+}
+
+.card-folder-missing .card-icon {
+    --icon-saturation: 0;
 }
 
 .card-bg {
@@ -186,11 +192,12 @@ main::before {
     align-items: center;
     justify-content: center;
     border: 1px solid rgba(90, 45, 45, 0.45);
+    box-shadow: rgba(255, 0, 0, 0.7) 0px 0px 30px;
 }
 
 .card-label {
     color: rgb(255, 255, 255);
-    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-family: "Teachers", "Bebas Neue", "Haettenschweiler", sans-serif;
     font-size: clamp(23px, 2.2vw, 28px);
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -372,7 +379,11 @@ main::before {
     }
 
     .header-img {
-        height: 36px;
+        height: 26px;
+    }
+
+    .header-center .header-img {
+        height: 34px;
     }
 
     .header-title {

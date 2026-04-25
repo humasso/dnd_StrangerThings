@@ -126,6 +126,8 @@ body.page-libretti main::before {
 }
 
 .book-card {
+  --carousel-step: clamp(116px, 17vw, 224px);
+  --card-scale: calc(1 - (var(--abs-offset) * 0.15));
   position: absolute;
   top: 52%;
   left: 50%;
@@ -141,13 +143,27 @@ body.page-libretti main::before {
   opacity: calc(1 - (var(--abs-offset) * 0.27));
   transform:
     translate(-50%, -50%)
-    translateX(calc(var(--offset) * clamp(116px, 17vw, 224px)))
-    scale(calc(1 - (var(--abs-offset) * 0.15)));
+    translateX(calc(var(--offset) * var(--carousel-step)))
+    scale(var(--card-scale));
   transition:
     opacity 220ms ease,
     transform 260ms ease,
     filter 220ms ease;
   z-index: calc(10 - var(--abs-offset));
+}
+
+.book-carousel.is-switch-next .book-card {
+  animation: carouselCardSlideNext 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.book-carousel.is-switch-prev .book-card {
+  animation: carouselCardSlidePrev 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.book-carousel.is-switch-next .book-card[aria-current="true"],
+.book-carousel.is-switch-prev .book-card[aria-current="true"] {
+  animation-duration: 380ms;
+  box-shadow: 0 0 0 0 rgba(255, 49, 56, 0.0);
 }
 
 .book-card:not([aria-current="true"]) {
@@ -1122,6 +1138,46 @@ input:disabled {
   to   { opacity: 1;   transform: translateX(0)     rotateY(0); }
 }
 
+@keyframes carouselCardSlideNext {
+  from {
+    opacity: 0.18;
+    transform:
+      translate(-50%, -50%)
+      translateX(calc((var(--offset) * var(--carousel-step)) + 44px))
+      scale(calc(var(--card-scale) * 0.96));
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: calc(1 - (var(--abs-offset) * 0.27));
+    transform:
+      translate(-50%, -50%)
+      translateX(calc(var(--offset) * var(--carousel-step)))
+      scale(var(--card-scale));
+  }
+}
+
+@keyframes carouselCardSlidePrev {
+  from {
+    opacity: 0.18;
+    transform:
+      translate(-50%, -50%)
+      translateX(calc((var(--offset) * var(--carousel-step)) - 44px))
+      scale(calc(var(--card-scale) * 0.96));
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: calc(1 - (var(--abs-offset) * 0.27));
+    transform:
+      translate(-50%, -50%)
+      translateX(calc(var(--offset) * var(--carousel-step)))
+      scale(var(--card-scale));
+  }
+}
+
 /* ── Responsive ── */
 @media (max-width: 980px) {
   .reader-layout {
@@ -1196,10 +1252,8 @@ input:disabled {
 
   .book-card {
     width: clamp(118px, 42vw, 190px);
-    transform:
-      translate(-50%, -50%)
-      translateX(calc(var(--offset) * clamp(86px, 30vw, 132px)))
-      scale(calc(1 - (var(--abs-offset) * 0.16)));
+    --carousel-step: clamp(86px, 30vw, 132px);
+    --card-scale: calc(1 - (var(--abs-offset) * 0.16));
   }
 
   .carousel-nav {

@@ -1,9 +1,10 @@
-const BOOKS_MANIFEST_URL = "books.json";
-const DEFAULT_BOOK = {
-  category: "Play Guide",
-  id: "diavolo-metal-muori",
-  pdf: "assets/contenuti/book.pdf",
-  title: "Diavolo, Metal, Muori",
+const BOOKS_MANIFEST_URL = "contenuti/libretti/books.json";
+const LIBRETTI_FOLDER_CANDIDATES = "contenuti/libretti";
+let DEFAULT_BOOK = {
+  category: "Guida di Gioco",
+  id: "play-guide",
+  pdf: "contenuti/libretti/Play_Guide.pdf",
+  title: "Play Guide",
 };
 const PDFJS_CDN_VERSION = "3.11.174";
 const MIN_QUERY_LENGTH = 2;
@@ -64,6 +65,9 @@ const state = {
   currentBook: null,
   currentPage: 1,
   direction: "forward",
+  generatedCoverCache: new Map(),
+  generatedCoverFailures: new Set(),
+  generatedCoverTasks: new Map(),
   isToolsVisible: true,
   isSpread: false,
   selectedBookIndex: 0,
@@ -82,6 +86,7 @@ const media = window.matchMedia("(max-width: 760px)");
 const resizeObserver = new ResizeObserver(() => scheduleRender());
 let renderTimer = 0;
 let searchTimer = 0;
+let carouselAnimationTimer = 0;
 
 boot();
 
@@ -106,8 +111,8 @@ function boot() {
 
 function bindEvents() {
   elements.homeButton.addEventListener("click", showHome);
-  elements.carouselPrevButton.addEventListener("click", () => moveCarousel(-1));
-  elements.carouselNextButton.addEventListener("click", () => moveCarousel(1));
+  elements.carouselPrevButton.addEventListener("click", () => moveCarousel(-1, "prev"));
+  elements.carouselNextButton.addEventListener("click", () => moveCarousel(1, "next"));
   bindCarouselSwipe();
 
   elements.prevButton.addEventListener("click", () => turnPage(-1));
@@ -333,27 +338,50 @@ function bindEvents() {
 async function loadLibrary() {
   setStatus("Caricamento libretti...");
 
+  let manifestBooks = [];
+
   try {
     const response = await fetch(BOOKS_MANIFEST_URL, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Manifest non disponibile: ${response.status}`);
     }
 
-    const books = await response.json();
-    state.books = normalizeBooks(books);
+    manifestBooks = await response.json();
   } catch (error) {
-    console.warn("Uso libreria predefinita", error);
+    console.warn("Manifest non disponibile, provo dalla cartella Libretti", error);
+  }
+
+  const discoveredBooks = await discoverBooksFromFolders();
+  const normalizedDiscovered = normalizeBooksOrEmpty(discoveredBooks);
+  const normalizedManifest = normalizeBooksOrEmpty(manifestBooks);
+
+  if (normalizedManifest.length) {
+    DEFAULT_BOOK = { ...normalizedManifest[0] };
+  }
+
+  if (normalizedDiscovered.length) {
+    state.books = mergeBooks(normalizedDiscovered, normalizedManifest);
+  } else if (normalizedManifest.length) {
+    state.books = normalizedManifest;
+  } else {
+    console.warn("Uso libreria predefinita: nessun PDF trovato nella cartella Libretti");
     state.books = [DEFAULT_BOOK];
   }
 
   state.selectedBookIndex = clamp(state.selectedBookIndex, 0, Math.max(0, state.books.length - 1));
   renderLibrary();
+  void preloadBookCovers();
   setStatus("");
 }
 
 function normalizeBooks(books) {
+  const validBooks = normalizeBooksOrEmpty(books);
+  return validBooks.length ? validBooks : [DEFAULT_BOOK];
+}
+
+function normalizeBooksOrEmpty(books) {
   const normalized = Array.isArray(books) ? books : [];
-  const validBooks = normalized
+  return normalized
     .map((book, index) => ({
       category: book.category || "Libretto",
       cover: book.cover || "",
@@ -362,8 +390,143 @@ function normalizeBooks(books) {
       title: book.title || `Libretto ${index + 1}`,
     }))
     .filter((book) => typeof book.pdf === "string" && book.pdf.trim());
+}
 
-  return validBooks.length ? validBooks : [DEFAULT_BOOK];
+function mergeBooks(folderBooks, manifestBooks) {
+  if (!manifestBooks.length) {
+    return folderBooks;
+  }
+
+  const manifestByPdf = new Map(
+    manifestBooks.map((book) => [normalizePath(book.pdf), book])
+  );
+
+  return folderBooks.map((book, index) => {
+    const manifestBook = manifestByPdf.get(normalizePath(book.pdf));
+    if (!manifestBook) {
+      return book;
+    }
+
+    return {
+      category: getStringOrFallback(manifestBook.category, book.category),
+      cover: getStringOrFallback(manifestBook.cover, book.cover),
+      id: getStringOrFallback(manifestBook.id, book.id || createBookId(book.pdf, index)),
+      pdf: book.pdf,
+      title: getStringOrFallback(manifestBook.title, book.title),
+    };
+  });
+}
+
+async function discoverBooksFromFolders() {
+  for (const folderPath of LIBRETTI_FOLDER_CANDIDATES) {
+    const books = await discoverBooksInFolder(folderPath);
+    if (books.length) {
+      return books;
+    }
+  }
+
+  return [];
+}
+
+async function discoverBooksInFolder(folderPath) {
+  const normalizedFolder = normalizePath(folderPath);
+  if (!normalizedFolder) {
+    return [];
+  }
+
+  let response;
+  try {
+    response = await fetch(`${normalizedFolder}/`, { cache: "no-store" });
+  } catch (error) {
+    return [];
+  }
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const html = await response.text();
+  const parser = new DOMParser();
+  const documentNode = parser.parseFromString(html, "text/html");
+  const baseUrl = new URL(`${normalizedFolder}/`, window.location.href);
+  const pdfFileNames = new Set();
+
+  documentNode.querySelectorAll("a[href]").forEach((anchor) => {
+    const href = anchor.getAttribute("href");
+    if (!href) {
+      return;
+    }
+
+    let resolvedUrl;
+    try {
+      resolvedUrl = new URL(href, baseUrl);
+    } catch (error) {
+      return;
+    }
+
+    const fileName = decodeURIComponent(resolvedUrl.pathname.split("/").pop() || "");
+    if (!/\.pdf$/i.test(fileName)) {
+      return;
+    }
+
+    pdfFileNames.add(fileName);
+  });
+
+  const sortedPdfNames = Array.from(pdfFileNames).sort((left, right) =>
+    left.localeCompare(right, "it", { sensitivity: "base" })
+  );
+
+  const books = await Promise.all(
+    sortedPdfNames.map(async (fileName, index) => {
+      const stem = fileName.replace(/\.pdf$/i, "");
+      const metadata = await loadBookMetadata(normalizedFolder, stem);
+      const pdfPath = `${normalizedFolder}/${fileName}`;
+
+      return {
+        category: getStringOrFallback(metadata.category, "Libretto"),
+        cover: getStringOrFallback(metadata.cover, ""),
+        id: getStringOrFallback(metadata.id, createBookId(pdfPath, index)),
+        pdf: pdfPath,
+        title: getStringOrFallback(metadata.title, filenameToTitle(stem)),
+      };
+    })
+  );
+
+  return normalizeBooksOrEmpty(books);
+}
+
+async function loadBookMetadata(folderPath, stem) {
+  try {
+    const response = await fetch(`${folderPath}/${stem}.json`, { cache: "no-store" });
+    if (!response.ok) {
+      return {};
+    }
+
+    const metadata = await response.json();
+    return metadata && typeof metadata === "object" ? metadata : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function getStringOrFallback(value, fallback) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function filenameToTitle(stem) {
+  const normalized = (stem || "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Libretto";
+  }
+
+  return normalized
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function normalizePath(path) {
+  return (path || "").trim().replace(/^\/+|\/+$/g, "");
 }
 
 function renderLibrary() {
@@ -396,11 +559,15 @@ function renderLibrary() {
       image.alt = "";
       image.src = book.cover;
       cover.append(image);
+    } else if (hasGeneratedCover(book)) {
+      cover.append(createCoverImage(getGeneratedCover(book)));
+    } else if (hasGeneratedCoverFailure(book)) {
+      cover.append(createCoverFallback(book));
     } else {
       const canvas = document.createElement("canvas");
       canvas.className = "cover-canvas";
       cover.append(canvas);
-      renderBookCover(book, canvas);
+      void renderBookCover(book, canvas);
     }
 
     const category = document.createElement("span");
@@ -445,17 +612,51 @@ function getCarouselOffset(index, selectedIndex, total) {
   return clamp(wrappedOffset, -2, 2);
 }
 
-function selectBook(index) {
+function selectBook(index, preferredDirection = null) {
   if (!state.books.length) {
     return;
   }
 
-  state.selectedBookIndex = (index + state.books.length) % state.books.length;
+  const totalBooks = state.books.length;
+  const previousIndex = state.selectedBookIndex;
+  const nextIndex = (index + totalBooks) % totalBooks;
+
+  if (nextIndex === previousIndex) {
+    return;
+  }
+
+  const direction = preferredDirection || inferCarouselDirection(previousIndex, nextIndex, totalBooks);
+  state.selectedBookIndex = nextIndex;
   renderLibrary();
+  animateCarouselTransition(direction);
 }
 
-function moveCarousel(delta) {
-  selectBook(state.selectedBookIndex + delta);
+function moveCarousel(delta, preferredDirection = null) {
+  const direction = preferredDirection || (delta < 0 ? "prev" : "next");
+  selectBook(state.selectedBookIndex + delta, direction);
+}
+
+function inferCarouselDirection(previousIndex, nextIndex, totalBooks) {
+  if (totalBooks <= 1) {
+    return "next";
+  }
+
+  const forwardSteps = (nextIndex - previousIndex + totalBooks) % totalBooks;
+  const backwardSteps = (previousIndex - nextIndex + totalBooks) % totalBooks;
+  return forwardSteps <= backwardSteps ? "next" : "prev";
+}
+
+function animateCarouselTransition(direction) {
+  clearTimeout(carouselAnimationTimer);
+
+  const switchClass = direction === "prev" ? "is-switch-prev" : "is-switch-next";
+  elements.bookCarousel.classList.remove("is-switch-next", "is-switch-prev");
+  void elements.bookCarousel.offsetWidth;
+  elements.bookCarousel.classList.add(switchClass);
+
+  carouselAnimationTimer = window.setTimeout(() => {
+    elements.bookCarousel.classList.remove("is-switch-next", "is-switch-prev");
+  }, 380);
 }
 
 function bindCarouselSwipe() {
@@ -471,30 +672,141 @@ function bindCarouselSwipe() {
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY)) {
-      moveCarousel(deltaX < 0 ? 1 : -1);
+      moveCarousel(deltaX < 0 ? 1 : -1, deltaX < 0 ? "next" : "prev");
     }
   });
 }
 
+function getCoverCacheKey(book) {
+  return book.id || book.pdf;
+}
+
+function getGeneratedCover(book) {
+  return state.generatedCoverCache.get(getCoverCacheKey(book)) || "";
+}
+
+function hasGeneratedCover(book) {
+  return Boolean(getGeneratedCover(book));
+}
+
+function hasGeneratedCoverFailure(book) {
+  return state.generatedCoverFailures.has(getCoverCacheKey(book));
+}
+
+function createCoverImage(source) {
+  const image = document.createElement("img");
+  image.alt = "";
+  image.src = source;
+  return image;
+}
+
+async function preloadBookCovers() {
+  const booksToPreload = state.books.filter(
+    (book) => !book.cover && !hasGeneratedCover(book) && !hasGeneratedCoverFailure(book)
+  );
+
+  if (!booksToPreload.length) {
+    return;
+  }
+
+  await Promise.all(booksToPreload.map((book) => ensureGeneratedCover(book)));
+
+  if (!elements.homeScreen.hidden) {
+    renderLibrary();
+  }
+}
+
+async function ensureGeneratedCover(book) {
+  if (book.cover) {
+    return "";
+  }
+
+  const key = getCoverCacheKey(book);
+  const cachedCover = state.generatedCoverCache.get(key);
+  if (cachedCover) {
+    return cachedCover;
+  }
+
+  if (state.generatedCoverFailures.has(key)) {
+    return "";
+  }
+
+  const pendingTask = state.generatedCoverTasks.get(key);
+  if (pendingTask) {
+    return pendingTask;
+  }
+
+  const task = createGeneratedCover(book)
+    .then((generatedCover) => {
+      if (generatedCover) {
+        state.generatedCoverCache.set(key, generatedCover);
+        return generatedCover;
+      }
+
+      state.generatedCoverFailures.add(key);
+      return "";
+    })
+    .catch((error) => {
+      console.warn(`Copertina non disponibile per ${book.title}`, error);
+      state.generatedCoverFailures.add(key);
+      return "";
+    })
+    .finally(() => {
+      state.generatedCoverTasks.delete(key);
+    });
+
+  state.generatedCoverTasks.set(key, task);
+  return task;
+}
+
+async function createGeneratedCover(book) {
+  const pdf = await pdfjsLib.getDocument(book.pdf).promise;
+  const page = await pdf.getPage(1);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const coverWidth = 260;
+  const scale = coverWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+  const pixelRatio = window.devicePixelRatio || 1;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(viewport.width * pixelRatio);
+  canvas.height = Math.floor(viewport.height * pixelRatio);
+
+  await page.render({
+    canvasContext: canvas.getContext("2d", { alpha: false }),
+    transform: pixelRatio !== 1 ? [pixelRatio, 0, 0, pixelRatio, 0, 0] : null,
+    viewport,
+  }).promise;
+
+  return canvas.toDataURL("image/png");
+}
+
 async function renderBookCover(book, canvas) {
+  if (!canvas.isConnected) {
+    return;
+  }
+
+  const cachedCover = getGeneratedCover(book);
+  if (cachedCover) {
+    canvas.replaceWith(createCoverImage(cachedCover));
+    return;
+  }
+
   try {
-    const pdf = await pdfjsLib.getDocument(book.pdf).promise;
-    const page = await pdf.getPage(1);
-    const baseViewport = page.getViewport({ scale: 1 });
-    const coverWidth = 260;
-    const scale = coverWidth / baseViewport.width;
-    const viewport = page.getViewport({ scale });
-    const pixelRatio = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(viewport.width * pixelRatio);
-    canvas.height = Math.floor(viewport.height * pixelRatio);
-    canvas.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
-    await page.render({
-      canvasContext: canvas.getContext("2d", { alpha: false }),
-      transform: pixelRatio !== 1 ? [pixelRatio, 0, 0, pixelRatio, 0, 0] : null,
-      viewport,
-    }).promise;
+    const generatedCover = await ensureGeneratedCover(book);
+    if (!canvas.isConnected) {
+      return;
+    }
+
+    if (generatedCover) {
+      canvas.replaceWith(createCoverImage(generatedCover));
+      return;
+    }
   } catch (error) {
     console.warn(`Copertina non disponibile per ${book.title}`, error);
+  }
+
+  if (canvas.isConnected) {
     canvas.replaceWith(createCoverFallback(book));
   }
 }

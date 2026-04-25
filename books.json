@@ -1,8 +1,14 @@
 [
   {
+    "id": "play-guide",
+    "title": "Play Guide",
+    "category": "Libretto",
+    "pdf": "contenuti/libretti/Play_Guide.pdf"
+  },
+  {
     "id": "diavolo-metal-muori",
     "title": "Diavolo, Metal, Muori",
     "category": "Play Guide",
-    "pdf": "contenuti/book.pdf"
+    "pdf": "contenuti/libretti/diavolo-metal-muori.pdf"
   }
 ]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "play-guide",
+    "title": "Play Guide",
+    "category": "Guida di Gioco",
+    "pdf": "contenuti/libretti/play-guide.pdf"
+  },
+  {
+    "id": "diavolo-metal-muori",
+    "title": "Diavolo, Metal, Muori",
+    "category": "Avventura",
+    "pdf": "contenuti/libretti/diavolo-metal-muori.pdf"
+  }
+]

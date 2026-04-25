@@ -29,7 +29,7 @@
         <div class="cards-grid">
 
             <!-- LIBRETTI — disponibile -->
-            <a href="libretti.html" class="card">
+            <a href="libretti.html" class="card" data-folder-paths="contenuti/libretti,libretti">
                 <img src="icons/libretti.png" alt="Libretti" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">LIBRETTI</span>
@@ -37,7 +37,7 @@
             </a>
 
             <!-- CARTE — non disponibile -->
-            <button type="button" class="card" onclick="showUnavailable()">
+            <button type="button" class="card" data-folder-paths="contenuti/carte,carte" onclick="showUnavailable()">
                 <img src="icons/carte.png" alt="Carte" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">CARTE</span>
@@ -45,7 +45,7 @@
             </button>
 
             <!-- SCHEDE GIOCATORI — non disponibile -->
-            <button type="button" class="card" onclick="showUnavailable()">
+            <button type="button" class="card" data-folder-paths="contenuti/schede-giocatori,contenuti/schede_giocatori,schede_giocatori,schede" onclick="showUnavailable()">
                 <img src="icons/schede_giocatori.png" alt="Schede Giocatori" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHEDE<br>GIOCATORI</span>
@@ -53,7 +53,7 @@
             </button>
 
             <!-- SCHERMO MASTER — non disponibile -->
-            <button type="button" class="card" onclick="showUnavailable()">
+            <button type="button" class="card" data-folder-paths="contenuti/schermo-master,contenuti/schermo_master,schermo_master,schermo" onclick="showUnavailable()">
                 <img src="icons/schermo_master.webp" alt="Schermo Master" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHERMO<br>MASTER</span>
@@ -78,6 +78,48 @@
         function hideUnavailable() {
             document.getElementById('stModal').classList.remove('visible');
         }
+
+        async function folderExists(folderPath) {
+            const normalizedPath = folderPath.trim().replace(/^\/+|\/+$/g, '');
+            if (!normalizedPath) {
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${normalizedPath}/`, {
+                    method: 'HEAD',
+                    cache: 'no-store'
+                });
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function updateFolderIcons() {
+            const cards = Array.from(document.querySelectorAll('[data-folder-paths]'));
+            await Promise.all(cards.map(async function(card) {
+                const candidates = (card.dataset.folderPaths || '')
+                    .split(',')
+                    .map(function(path) { return path.trim(); })
+                    .filter(Boolean);
+
+                let hasFolder = false;
+                for (const folderPath of candidates) {
+                    if (await folderExists(folderPath)) {
+                        hasFolder = true;
+                        break;
+                    }
+                }
+
+                card.classList.toggle('card-folder-missing', !hasFolder);
+            }));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFolderIcons();
+        });
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') hideUnavailable();
         });
