@@ -1,8 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap');
-
-*, *::before, *::after {
-    margin: 0;
-    padding: 0;
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap");
+*, ::before, ::after {
+    margin: 0px;
+    padding: 0px;
     box-sizing: border-box;
 }
 
@@ -12,31 +11,27 @@ html, body {
 
 body {
     min-height: 100vh;
-    background-color: #1a0505;
-    background-image: url('background.png');
+    background-color: rgb(26, 5, 5);
+    background-image: url("background.png");
     background-size: cover;
     background-position: center 28%;
     background-repeat: no-repeat;
     display: flex;
     flex-direction: column;
-    font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+    font-family: "Bebas Neue", Impact, "Arial Narrow", Arial, sans-serif;
 }
 
-/* Dark overlay to deepen the background photo */
 body::before {
-    content: '';
+    content: "";
     position: fixed;
-    inset: 0;
+    inset: 0px;
     background: rgba(0, 0, 0, 0.48);
     z-index: 1;
     pointer-events: none;
 }
 
-/* ===========================
-   HEADER
-=========================== */
 header {
-    background: rgba(8, 3, 3, 0.90);
+    background: rgba(8, 3, 3, 0.9);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -44,7 +39,7 @@ header {
     min-height: 80px;
     border-bottom: 2px solid rgba(160, 0, 0, 0.35);
     position: relative;
-    z-index: 100; /* above body::before overlay */
+    z-index: 100;
 }
 
 .header-logo {
@@ -64,31 +59,44 @@ header {
     justify-content: center;
     text-decoration: none;
     cursor: pointer;
-    transition: opacity 0.18s ease;
+    transition: opacity 0.18s;
 }
 
 .header-center:hover {
     opacity: 0.82;
 }
 
-/* button.card resets */
 button.card {
     background: none;
-    border: none;
-    font: inherit;
+    border: medium;
+    font-style: inherit;
+    font-variant-caps: inherit;
+    font-weight: inherit;
+    font-width: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+    font-size-adjust: inherit;
+    font-kerning: inherit;
+    font-variant-alternates: inherit;
+    font-variant-ligatures: inherit;
+    font-variant-numeric: inherit;
+    font-variant-east-asian: inherit;
+    font-variant-position: inherit;
+    font-feature-settings: inherit;
+    font-optical-sizing: inherit;
+    font-variation-settings: inherit;
     text-align: inherit;
 }
 
-/* Titolo.png is RGBA with transparent bg — works on dark header */
 .header-center .header-img {
     height: 68px;
     width: auto;
     object-fit: contain;
 }
 
-/* Fallback text styles (inner pages that still use spans) */
 .header-subtitle {
-    font-family: 'Dancing Script', cursive;
+    font-family: "Dancing Script", cursive;
     color: rgba(230, 218, 218, 0.82);
     font-size: 15px;
     font-weight: 600;
@@ -97,46 +105,39 @@ button.card {
 }
 
 .header-title {
-    font-family: 'Metal Mania', Georgia, serif;
-    color: #CC0000;
+    font-family: "Metal Mania", Georgia, serif;
+    color: rgb(204, 0, 0);
     font-size: clamp(26px, 4vw, 44px);
     text-transform: uppercase;
     letter-spacing: 4px;
-    text-shadow: 2px 2px 0 #000, 0 0 12px rgba(180, 0, 0, 0.6);
+    text-shadow: rgb(0, 0, 0) 2px 2px 0px, rgba(180, 0, 0, 0.6) 0px 0px 12px;
     line-height: 0.88;
 }
 
-/* ===========================
-   HOME — MAIN + CARDS
-=========================== */
 main {
-    flex: 1;
+    flex: 1 1 0%;
     display: flex;
-    align-items: center;      /* center cards on the vertical axis */
+    align-items: center;
     justify-content: center;
     padding: 24px 28px;
     position: relative;
-    z-index: 2; /* above body::before overlay */
+    z-index: 2;
 }
 
-/* gradient at top of content area (hides poster text on mobile) */
 main::before {
-    content: '';
+    content: "";
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0px;
+    left: 0px;
+    right: 0px;
     height: 110px;
-    background: linear-gradient(to bottom,
-        rgba(5, 3, 3, 0.90) 0%,
-        rgba(5, 3, 3, 0.45) 55%,
-        transparent 100%);
+    background: linear-gradient(rgba(5, 3, 3, 0.9) 0%, rgba(5, 3, 3, 0.45) 55%, transparent 100%);
     pointer-events: none;
     z-index: 0;
 }
 
 .cards-grid {
-    width: 100%;
+    max-width: 80%;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 18px;
@@ -149,7 +150,7 @@ main::before {
     align-items: center;
     text-decoration: none;
     cursor: pointer;
-    transition: transform 0.22s ease;
+    transition: transform 0.22s;
 }
 
 .card:hover {
@@ -163,48 +164,42 @@ main::before {
     position: relative;
     z-index: 2;
     margin-bottom: -55px;
-    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.8));
-    transition: filter 0.22s ease;
-}
-
-.card-icon.schermo-icon {
-    width: 95%;
-    max-width: 220px;
-    margin-bottom: -75px;
+    filter: drop-shadow(rgba(0, 0, 0, 0.8) 0px 10px 20px);
+    transition: filter 0.22s;
 }
 
 .card:hover .card-icon {
-    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.9));
+    filter: drop-shadow(rgba(0, 0, 0, 0.9) 0px 14px 28px);
 }
 
 .card-bg {
     background: rgba(5, 3, 3, 0.94);
     border-radius: 20px;
-    width: 100%;
+    max-width: 90%;
+    width: 89%;
     padding: 65px 14px 24px;
     text-align: center;
-    min-height: 130px;
+    min-height: 150px;
+    height: 120px;
+    max-height: 200px;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
     border: 1px solid rgba(90, 45, 45, 0.45);
 }
 
 .card-label {
-    color: #ffffff;
-    font-family: 'Bebas Neue', Impact, 'Haettenschweiler', sans-serif;
-    font-size: clamp(18px, 2.2vw, 28px);
+    color: rgb(255, 255, 255);
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-size: clamp(23px, 2.2vw, 28px);
     letter-spacing: 3px;
     text-transform: uppercase;
     line-height: 1.1;
     display: block;
 }
 
-/* ===========================
-   INNER PAGE — LIBRETTI ETC.
-=========================== */
 .inner-main {
-    flex: 1;
+    flex: 1 1 0%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -220,13 +215,13 @@ main::before {
     width: 100%;
     max-width: 700px;
     border: 1px solid rgba(80, 40, 40, 0.4);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+    box-shadow: rgba(0, 0, 0, 0.7) 0px 0px 40px;
 }
 
 .back-link {
     color: rgba(200, 190, 190, 0.65);
     text-decoration: none;
-    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-family: "Bebas Neue", Impact, sans-serif;
     font-size: 13px;
     letter-spacing: 2px;
     display: block;
@@ -239,8 +234,8 @@ main::before {
 }
 
 .page-title {
-    color: #ffffff;
-    font-family: 'Bebas Neue', Impact, sans-serif;
+    color: rgb(255, 255, 255);
+    font-family: "Bebas Neue", Impact, sans-serif;
     font-size: 38px;
     letter-spacing: 5px;
     text-align: center;
@@ -248,9 +243,6 @@ main::before {
     text-transform: uppercase;
 }
 
-/* ===========================
-   CAROUSEL
-=========================== */
 .carousel-container {
     display: flex;
     align-items: center;
@@ -259,7 +251,7 @@ main::before {
 }
 
 .carousel-wrapper {
-    flex: 1;
+    flex: 1 1 0%;
     overflow: hidden;
 }
 
@@ -279,7 +271,7 @@ main::before {
     opacity: 0.55;
     transform: scale(0.82);
     transform-origin: center bottom;
-    transition: opacity 0.35s ease, transform 0.35s ease;
+    transition: opacity 0.35s, transform 0.35s;
 }
 
 .carousel-item.near {
@@ -297,8 +289,8 @@ main::before {
     aspect-ratio: 3 / 4;
     border-radius: 5px;
     overflow: hidden;
-    background: #2a1a00;
-    box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.7);
+    background: rgb(42, 26, 0);
+    box-shadow: rgba(0, 0, 0, 0.7) 3px 3px 12px;
 }
 
 .book-cover img {
@@ -309,8 +301,8 @@ main::before {
 }
 
 .book-name {
-    color: #ffffff;
-    font-family: 'Bebas Neue', Impact, sans-serif;
+    color: rgb(255, 255, 255);
+    font-family: "Bebas Neue", Impact, sans-serif;
     font-size: 13px;
     letter-spacing: 1.5px;
     text-align: center;
@@ -339,7 +331,6 @@ main::before {
     transition: background 0.2s, border-color 0.2s;
     line-height: 1;
     padding-bottom: 3px;
-    user-select: none;
 }
 
 .carousel-btn:hover {
@@ -361,20 +352,15 @@ main::before {
     background: rgba(255, 255, 255, 0.28);
     cursor: pointer;
     transition: background 0.3s;
-    border: none;
-    padding: 0;
+    border: medium;
+    padding: 0px;
 }
 
 .dot.active {
     background: rgba(255, 255, 255, 0.9);
 }
 
-/* ===========================
-   RESPONSIVE
-=========================== */
 @media (max-width: 768px) {
-    /* Zoom background 150% wide so we have vertical overflow to shift away
-       from "FINISH THE CAMPAIGN" text (top ~16% of image) */
     body {
         background-size: 150% auto;
         background-position: center 78%;
@@ -399,7 +385,7 @@ main::before {
     }
 
     main {
-        padding: 0 12px 20px;
+        padding: 0px 12px 20px;
     }
 
     .cards-grid {
@@ -437,27 +423,20 @@ main::before {
     }
 }
 
-/* ===========================
-   HEADER — clickable logo
-=========================== */
 .header-center-link {
-    display: contents; /* transparent wrapper, doesn't affect layout */
+    display: contents;
 }
 
-/* ===========================
-   MODAL — "Attualmente non disponibile"
-   Stranger Things style
-=========================== */
 .st-modal {
     display: none;
     position: fixed;
-    inset: 0;
+    inset: 0px;
     z-index: 9999;
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.88);
     cursor: pointer;
-    animation: st-fadein 0.25s ease;
+    animation: 0.25s st-fadein;
 }
 
 .st-modal.visible {
@@ -471,23 +450,19 @@ main::before {
 }
 
 .st-modal-label {
-    font-family: 'Metal Mania', cursive;
+    font-family: "Metal Mania", cursive;
     font-size: clamp(2rem, 6vw, 4.2rem);
-    color: #e8c062;
+    color: rgb(232, 192, 98);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     line-height: 1.15;
-    animation: st-flicker 3s infinite;
-    text-shadow:
-        0 0 8px  rgba(255, 190, 50, 0.9),
-        0 0 24px rgba(255, 120, 10, 0.65),
-        0 0 60px rgba(180, 20, 0, 0.45),
-        0 0 120px rgba(140, 0, 0, 0.3);
+    animation: 3s infinite st-flicker;
+    text-shadow: rgba(255, 190, 50, 0.9) 0px 0px 8px, rgba(255, 120, 10, 0.65) 0px 0px 24px, rgba(180, 20, 0, 0.45) 0px 0px 60px, rgba(140, 0, 0, 0.3) 0px 0px 120px;
 }
 
 .st-modal-hint {
     margin-top: 36px;
-    font-family: 'Bebas Neue', sans-serif;
+    font-family: "Bebas Neue", sans-serif;
     font-size: 0.95rem;
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.35);
@@ -495,29 +470,31 @@ main::before {
 }
 
 @keyframes st-fadein {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 @keyframes st-flicker {
-    0%,  19%,  21%,  23%,  100% {
+    0%, 19%, 21%, 23%, 100% {
         opacity: 1;
-        text-shadow:
-            0 0 8px  rgba(255, 190, 50, 0.9),
-            0 0 24px rgba(255, 120, 10, 0.65),
-            0 0 60px rgba(180, 20, 0, 0.45),
-            0 0 120px rgba(140, 0, 0, 0.3);
+        text-shadow: rgba(255, 190, 50, 0.9) 0px 0px 8px, rgba(255, 120, 10, 0.65) 0px 0px 24px, rgba(180, 20, 0, 0.45) 0px 0px 60px, rgba(140, 0, 0, 0.3) 0px 0px 120px;
     }
+
     20%, 22% {
         opacity: 0.55;
         text-shadow: none;
     }
+
     60%, 62% {
         opacity: 0.85;
-        text-shadow:
-            0 0 4px  rgba(255, 190, 50, 0.6),
-            0 0 14px rgba(255, 120, 10, 0.4);
+        text-shadow: rgba(255, 190, 50, 0.6) 0px 0px 4px, rgba(255, 120, 10, 0.4) 0px 0px 14px;
     }
+
     61% {
         opacity: 0.4;
         text-shadow: none;
