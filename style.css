@@ -5,6 +5,9 @@
     box-sizing: border-box;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap');
+
+
 html, body {
     height: 100%;
 }
@@ -196,7 +199,7 @@ main::before {
 
 .card-label {
     color: rgb(255, 255, 255);
-    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: clamp(23px, 2.2vw, 28px);
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -227,7 +230,7 @@ main::before {
 .back-link {
     color: rgba(200, 190, 190, 0.65);
     text-decoration: none;
-    font-family: "Bebas Neue", Impact, sans-serif;
+    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 13px;
     letter-spacing: 2px;
     display: block;
@@ -241,7 +244,7 @@ main::before {
 
 .page-title {
     color: rgb(255, 255, 255);
-    font-family: "Bebas Neue", Impact, sans-serif;
+    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 38px;
     letter-spacing: 5px;
     text-align: center;
@@ -308,7 +311,7 @@ main::before {
 
 .book-name {
     color: rgb(255, 255, 255);
-    font-family: "Bebas Neue", Impact, sans-serif;
+    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 13px;
     letter-spacing: 1.5px;
     text-align: center;
@@ -468,7 +471,7 @@ main::before {
 
 .st-modal-hint {
     margin-top: 36px;
-    font-family: "Bebas Neue", sans-serif;
+    font-family: "Teachers", "Bebas Neue", sans-serif;
     font-size: 0.95rem;
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.35);
