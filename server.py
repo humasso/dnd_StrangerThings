@@ -54,8 +54,8 @@ def scan_libretti() -> list:
 
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        # Intercetta /books.json e lo genera dinamicamente
-        if self.path.split("?")[0] == "/books.json":
+        # Intercetta /contenuti/libretti/books.json e lo genera dinamicamente
+        if self.path.split("?")[0] == "/contenuti/libretti/books.json":
             self._serve_books_json()
         else:
             super().do_GET()
