@@ -1,14 +1,14 @@
-const BOOKS_MANIFEST_URL = "contenuti/libretti/books.json";
+const BOOKS_MANIFEST_URL = "assets/contenuti/libretti/books.json";
 const LIBRETTI_FOLDER_CANDIDATES = [
-  "contenuti/libretti",
-  "contenuti/Libretti",
+  "assets/contenuti/libretti",
+  "assets/contenuti/Libretti",
   "Libretti",
   "libretti",
 ];
 let DEFAULT_BOOK = {
   category: "Guida di Gioco",
   id: "play-guide",
-  pdf: "contenuti/libretti/Play_Guide.pdf",
+  pdf: "assets/contenuti/libretti/Play_Guide.pdf",
   title: "Play Guide",
 };
 const PDFJS_CDN_VERSION = "3.11.174";

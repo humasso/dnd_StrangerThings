@@ -14,15 +14,15 @@
 
     <header>
         <div class="header-logo header-logo-left">
-            <img src="header/Titolo - DnD.png" alt="Dungeons & Dragons" class="header-img">
+            <img src="assets/header/Titolo - DnD.png" alt="Dungeons & Dragons" class="header-img">
         </div>
 
         <a href="index.html" class="header-center" aria-label="Torna alla home">
-            <img src="header/Titolo.png" class="header-img">
+            <img src="assets/header/Titolo.png" class="header-img">
         </a>
 
         <div class="header-logo header-logo-right">
-            <img src="header/Titolo - Netflix.png" alt="Netflix – Stranger Things" class="header-img">
+            <img src="assets/header/Titolo - Netflix.png" alt="Netflix – Stranger Things" class="header-img">
         </div>
     </header>
 
@@ -31,7 +31,7 @@
 
             <!-- LIBRETTI — disponibile -->
             <a href="libretti.html" class="card" id="librettiCard">
-                <img src="icons/libretti.png" alt="Libretti" class="card-icon">
+                <img src="assets/icons/libretti.png" alt="Libretti" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">LIBRETTI</span>
                 </div>
@@ -39,7 +39,7 @@
 
             <!-- CARTE — non disponibile -->
             <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="icons/carte.png" alt="Carte" class="card-icon">
+                <img src="assets/icons/carte.png" alt="Carte" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">CARTE</span>
                 </div>
@@ -47,7 +47,7 @@
 
             <!-- SCHEDE GIOCATORI — non disponibile -->
             <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="icons/schede_giocatori.png" alt="Schede Giocatori" class="card-icon">
+                <img src="assets/icons/schede_giocatori.png" alt="Schede Giocatori" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHEDE<br>GIOCATORI</span>
                 </div>
@@ -55,7 +55,7 @@
 
             <!-- SCHERMO MASTER — non disponibile -->
             <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="icons/schermo_master.webp" alt="Schermo Master" class="card-icon">
+                <img src="assets/icons/schermo_master.webp" alt="Schermo Master" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHERMO<br>MASTER</span>
                 </div>
@@ -87,7 +87,7 @@
             }
 
             try {
-                const response = await fetch('contenuti/libretti/books.json', {
+                const response = await fetch('assets/contenuti/libretti/books.json', {
                     cache: 'no-store'
                 });
 

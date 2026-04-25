@@ -28,6 +28,10 @@ body.page-libretti {
   overflow: hidden;
 }
 
+body.page-libretti header {
+  justify-content: center;
+}
+
 /* Reset style.css main rules that break the reader layout */
 body.page-libretti main {
   padding: 0;

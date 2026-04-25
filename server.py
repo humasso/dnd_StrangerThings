@@ -2,7 +2,7 @@
 """
 Server locale – Hellfire Club
 Serve i file statici del sito e genera books.json automaticamente
-scansionando la cartella contenuti/libretti/. Ogni PDF nella cartella appare
+scansionando la cartella assets/contenuti/libretti/. Ogni PDF nella cartella appare
 nel carosello senza toccare nessun file di configurazione.
 
 Uso:  python3 server.py
@@ -13,7 +13,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 PORT = 8765
-LIBRETTI_DIR = Path("contenuti/libretti")
+LIBRETTI_DIR = Path("assets/contenuti/libretti")
 
 
 def filename_to_title(stem: str) -> str:
@@ -23,7 +23,7 @@ def filename_to_title(stem: str) -> str:
 
 def scan_libretti() -> list:
     """
-    Scansiona contenuti/libretti/ e restituisce la lista di libri per books.json.
+    Scansiona assets/contenuti/libretti/ e restituisce la lista di libri per books.json.
     Per ogni file .pdf può esistere un .json con lo stesso nome base
     che sovrascrive titolo e categoria:
         { "title": "Titolo personalizzato", "category": "Play Guide" }
@@ -46,7 +46,7 @@ def scan_libretti() -> list:
             "id":       meta.get("id", book_id),
             "title":    meta.get("title", filename_to_title(stem)),
             "category": meta.get("category", "Libretto"),
-            "pdf":      f"contenuti/libretti/{pdf.name}",
+            "pdf":      f"assets/contenuti/libretti/{pdf.name}",
         })
 
     return books
@@ -54,8 +54,8 @@ def scan_libretti() -> list:
 
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        # Intercetta /contenuti/libretti/books.json e lo genera dinamicamente
-        if self.path.split("?")[0] == "/contenuti/libretti/books.json":
+        # Intercetta /assets/contenuti/libretti/books.json e lo genera dinamicamente
+        if self.path.split("?")[0] == "/assets/contenuti/libretti/books.json":
             self._serve_books_json()
         else:
             super().do_GET()
