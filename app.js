@@ -1,5 +1,10 @@
 const BOOKS_MANIFEST_URL = "contenuti/libretti/books.json";
-const LIBRETTI_FOLDER_CANDIDATES = "contenuti/libretti";
+const LIBRETTI_FOLDER_CANDIDATES = [
+  "contenuti/libretti",
+  "contenuti/Libretti",
+  "Libretti",
+  "libretti",
+];
 let DEFAULT_BOOK = {
   category: "Guida di Gioco",
   id: "play-guide",

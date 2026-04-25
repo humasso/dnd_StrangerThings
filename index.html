@@ -29,7 +29,7 @@
         <div class="cards-grid">
 
             <!-- LIBRETTI — disponibile -->
-            <a href="libretti.html" class="card" data-folder-paths="contenuti/libretti,libretti">
+            <a href="libretti.html" class="card" id="librettiCard">
                 <img src="icons/libretti.png" alt="Libretti" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">LIBRETTI</span>
@@ -37,7 +37,7 @@
             </a>
 
             <!-- CARTE — non disponibile -->
-            <button type="button" class="card" data-folder-paths="contenuti/carte,carte" onclick="showUnavailable()">
+            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
                 <img src="icons/carte.png" alt="Carte" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">CARTE</span>
@@ -45,7 +45,7 @@
             </button>
 
             <!-- SCHEDE GIOCATORI — non disponibile -->
-            <button type="button" class="card" data-folder-paths="contenuti/schede-giocatori,contenuti/schede_giocatori,schede_giocatori,schede" onclick="showUnavailable()">
+            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
                 <img src="icons/schede_giocatori.png" alt="Schede Giocatori" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHEDE<br>GIOCATORI</span>
@@ -53,7 +53,7 @@
             </button>
 
             <!-- SCHERMO MASTER — non disponibile -->
-            <button type="button" class="card" data-folder-paths="contenuti/schermo-master,contenuti/schermo_master,schermo_master,schermo" onclick="showUnavailable()">
+            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
                 <img src="icons/schermo_master.webp" alt="Schermo Master" class="card-icon">
                 <div class="card-bg">
                     <span class="card-label">SCHERMO<br>MASTER</span>
@@ -79,45 +79,32 @@
             document.getElementById('stModal').classList.remove('visible');
         }
 
-        async function folderExists(folderPath) {
-            const normalizedPath = folderPath.trim().replace(/^\/+|\/+$/g, '');
-            if (!normalizedPath) {
-                return false;
+        async function updateLibrettiIcon() {
+            const librettiCard = document.getElementById('librettiCard');
+            if (!librettiCard) {
+                return;
             }
 
             try {
-                const response = await fetch(`${normalizedPath}/`, {
-                    method: 'HEAD',
+                const response = await fetch('contenuti/libretti/books.json', {
                     cache: 'no-store'
                 });
-                return response.ok;
+
+                if (!response.ok) {
+                    librettiCard.classList.add('card-folder-missing');
+                    return;
+                }
+
+                const books = await response.json();
+                const hasBooks = Array.isArray(books) && books.length > 0;
+                librettiCard.classList.toggle('card-folder-missing', !hasBooks);
             } catch (error) {
-                return false;
+                librettiCard.classList.add('card-folder-missing');
             }
         }
 
-        async function updateFolderIcons() {
-            const cards = Array.from(document.querySelectorAll('[data-folder-paths]'));
-            await Promise.all(cards.map(async function(card) {
-                const candidates = (card.dataset.folderPaths || '')
-                    .split(',')
-                    .map(function(path) { return path.trim(); })
-                    .filter(Boolean);
-
-                let hasFolder = false;
-                for (const folderPath of candidates) {
-                    if (await folderExists(folderPath)) {
-                        hasFolder = true;
-                        break;
-                    }
-                }
-
-                card.classList.toggle('card-folder-missing', !hasFolder);
-            }));
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
-            updateFolderIcons();
+            updateLibrettiIcon();
         });
 
         document.addEventListener('keydown', function(e) {
