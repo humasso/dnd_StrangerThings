@@ -356,9 +356,15 @@ async function loadLibrary() {
     console.warn("Manifest non disponibile, provo dalla cartella Libretti", error);
   }
 
-  const discoveredBooks = await discoverBooksFromFolders();
-  const normalizedDiscovered = normalizeBooksOrEmpty(discoveredBooks);
   const normalizedManifest = normalizeBooksOrEmpty(manifestBooks);
+  let normalizedDiscovered = [];
+
+  // In produzione (es. GitHub Pages) usiamo prima il manifest per evitare richieste
+  // a directory listing non supportati che generano 404.
+  if (!normalizedManifest.length) {
+    const discoveredBooks = await discoverBooksFromFolders();
+    normalizedDiscovered = normalizeBooksOrEmpty(discoveredBooks);
+  }
 
   if (normalizedManifest.length) {
     DEFAULT_BOOK = { ...normalizedManifest[0] };
@@ -423,7 +429,11 @@ function mergeBooks(folderBooks, manifestBooks) {
 }
 
 async function discoverBooksFromFolders() {
-  for (const folderPath of LIBRETTI_FOLDER_CANDIDATES) {
+  const folderCandidates = Array.isArray(LIBRETTI_FOLDER_CANDIDATES)
+    ? LIBRETTI_FOLDER_CANDIDATES
+    : [LIBRETTI_FOLDER_CANDIDATES];
+
+  for (const folderPath of folderCandidates) {
     const books = await discoverBooksInFolder(folderPath);
     if (books.length) {
       return books;
