@@ -5,7 +5,6 @@
     box-sizing: border-box;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap');
 html, body {
     height: 100%;
 }
@@ -197,7 +196,7 @@ main::before {
 
 .card-label {
     color: rgb(255, 255, 255);
-    font-family: "Teachers", "Bebas Neue", "Haettenschweiler", sans-serif;
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: clamp(23px, 2.2vw, 28px);
     letter-spacing: 3px;
     text-transform: uppercase;
