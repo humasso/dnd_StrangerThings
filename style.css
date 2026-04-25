@@ -12,7 +12,7 @@ html, body {
 body {
     min-height: 100vh;
     background-color: rgb(26, 5, 5);
-    background-image: url("assets/background.png");
+    background-image: url("assets/background.jpg");
     background-size: cover;
     background-position: center 28%;
     background-repeat: no-repeat;
