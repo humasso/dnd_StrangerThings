@@ -1,0 +1,525 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap');
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    background-color: #1a0505;
+    background-image: url('background.png');
+    background-size: cover;
+    background-position: center 28%;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+}
+
+/* Dark overlay to deepen the background photo */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.48);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ===========================
+   HEADER
+=========================== */
+header {
+    background: rgba(8, 3, 3, 0.90);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 28px;
+    min-height: 80px;
+    border-bottom: 2px solid rgba(160, 0, 0, 0.35);
+    position: relative;
+    z-index: 100; /* above body::before overlay */
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+}
+
+.header-img {
+    height: 52px;
+    width: auto;
+    object-fit: contain;
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.18s ease;
+}
+
+.header-center:hover {
+    opacity: 0.82;
+}
+
+/* button.card resets */
+button.card {
+    background: none;
+    border: none;
+    font: inherit;
+    text-align: inherit;
+}
+
+/* Titolo.png is RGBA with transparent bg — works on dark header */
+.header-center .header-img {
+    height: 68px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Fallback text styles (inner pages that still use spans) */
+.header-subtitle {
+    font-family: 'Dancing Script', cursive;
+    color: rgba(230, 218, 218, 0.82);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.header-title {
+    font-family: 'Metal Mania', Georgia, serif;
+    color: #CC0000;
+    font-size: clamp(26px, 4vw, 44px);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 2px 2px 0 #000, 0 0 12px rgba(180, 0, 0, 0.6);
+    line-height: 0.88;
+}
+
+/* ===========================
+   HOME — MAIN + CARDS
+=========================== */
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;      /* center cards on the vertical axis */
+    justify-content: center;
+    padding: 24px 28px;
+    position: relative;
+    z-index: 2; /* above body::before overlay */
+}
+
+/* gradient at top of content area (hides poster text on mobile) */
+main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 110px;
+    background: linear-gradient(to bottom,
+        rgba(5, 3, 3, 0.90) 0%,
+        rgba(5, 3, 3, 0.45) 55%,
+        transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.cards-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    align-items: end;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.22s ease;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+}
+
+.card-icon {
+    width: 88%;
+    max-width: 200px;
+    object-fit: contain;
+    position: relative;
+    z-index: 2;
+    margin-bottom: -55px;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.8));
+    transition: filter 0.22s ease;
+}
+
+.card-icon.schermo-icon {
+    width: 95%;
+    max-width: 220px;
+    margin-bottom: -75px;
+}
+
+.card:hover .card-icon {
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.9));
+}
+
+.card-bg {
+    background: rgba(5, 3, 3, 0.94);
+    border-radius: 20px;
+    width: 100%;
+    padding: 65px 14px 24px;
+    text-align: center;
+    min-height: 130px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border: 1px solid rgba(90, 45, 45, 0.45);
+}
+
+.card-label {
+    color: #ffffff;
+    font-family: 'Bebas Neue', Impact, 'Haettenschweiler', sans-serif;
+    font-size: clamp(18px, 2.2vw, 28px);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    line-height: 1.1;
+    display: block;
+}
+
+/* ===========================
+   INNER PAGE — LIBRETTI ETC.
+=========================== */
+.inner-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.content-panel {
+    background: rgba(5, 3, 3, 0.92);
+    border-radius: 22px;
+    padding: 28px 20px 30px;
+    width: 100%;
+    max-width: 700px;
+    border: 1px solid rgba(80, 40, 40, 0.4);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+}
+
+.back-link {
+    color: rgba(200, 190, 190, 0.65);
+    text-decoration: none;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 14px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: rgba(220, 60, 60, 0.9);
+}
+
+.page-title {
+    color: #ffffff;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 38px;
+    letter-spacing: 5px;
+    text-align: center;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+}
+
+/* ===========================
+   CAROUSEL
+=========================== */
+.carousel-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.carousel-wrapper {
+    flex: 1;
+    overflow: hidden;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 16px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+
+.carousel-item {
+    flex: 0 0 calc(33.333% - 11px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.55;
+    transform: scale(0.82);
+    transform-origin: center bottom;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.carousel-item.near {
+    opacity: 0.78;
+    transform: scale(0.91);
+}
+
+.carousel-item.center {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.book-cover {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 5px;
+    overflow: hidden;
+    background: #2a1a00;
+    box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.7);
+}
+
+.book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.book-name {
+    color: #ffffff;
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 1.15;
+}
+
+.carousel-item.center .book-name {
+    font-size: 15px;
+    letter-spacing: 2px;
+}
+
+.carousel-btn {
+    background: rgba(20, 15, 15, 0.82);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    color: white;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+    line-height: 1;
+    padding-bottom: 3px;
+    user-select: none;
+}
+
+.carousel-btn:hover {
+    background: rgba(170, 0, 0, 0.7);
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+.dots-container {
+    display: flex;
+    justify-content: center;
+    gap: 9px;
+    margin-top: 22px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.28);
+    cursor: pointer;
+    transition: background 0.3s;
+    border: none;
+    padding: 0;
+}
+
+.dot.active {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+@media (max-width: 768px) {
+    /* Zoom background 150% wide so we have vertical overflow to shift away
+       from "FINISH THE CAMPAIGN" text (top ~16% of image) */
+    body {
+        background-size: 150% auto;
+        background-position: center 78%;
+    }
+
+    header {
+        padding: 8px 14px;
+        min-height: 60px;
+    }
+
+    .header-img {
+        height: 36px;
+    }
+
+    .header-title {
+        font-size: 22px;
+        letter-spacing: 2px;
+    }
+
+    .header-subtitle {
+        font-size: 11px;
+    }
+
+    main {
+        padding: 0 12px 20px;
+    }
+
+    .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+
+    .card-icon {
+        margin-bottom: -36px;
+    }
+
+    .card-icon.schermo-icon {
+        margin-bottom: -50px;
+    }
+
+    .card-bg {
+        padding: 44px 10px 16px;
+        min-height: 90px;
+    }
+
+    .inner-main {
+        padding: 16px 12px;
+    }
+
+    .content-panel {
+        padding: 22px 14px 24px;
+    }
+
+    .page-title {
+        font-size: 28px;
+    }
+
+    .carousel-item {
+        flex: 0 0 calc(50% - 8px);
+    }
+}
+
+/* ===========================
+   HEADER — clickable logo
+=========================== */
+.header-center-link {
+    display: contents; /* transparent wrapper, doesn't affect layout */
+}
+
+/* ===========================
+   MODAL — "Attualmente non disponibile"
+   Stranger Things style
+=========================== */
+.st-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.88);
+    cursor: pointer;
+    animation: st-fadein 0.25s ease;
+}
+
+.st-modal.visible {
+    display: flex;
+}
+
+.st-modal-inner {
+    text-align: center;
+    padding: 20px 40px;
+    pointer-events: none;
+}
+
+.st-modal-label {
+    font-family: 'Metal Mania', cursive;
+    font-size: clamp(2rem, 6vw, 4.2rem);
+    color: #e8c062;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.15;
+    animation: st-flicker 3s infinite;
+    text-shadow:
+        0 0 8px  rgba(255, 190, 50, 0.9),
+        0 0 24px rgba(255, 120, 10, 0.65),
+        0 0 60px rgba(180, 20, 0, 0.45),
+        0 0 120px rgba(140, 0, 0, 0.3);
+}
+
+.st-modal-hint {
+    margin-top: 36px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+}
+
+@keyframes st-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes st-flicker {
+    0%,  19%,  21%,  23%,  100% {
+        opacity: 1;
+        text-shadow:
+            0 0 8px  rgba(255, 190, 50, 0.9),
+            0 0 24px rgba(255, 120, 10, 0.65),
+            0 0 60px rgba(180, 20, 0, 0.45),
+            0 0 120px rgba(140, 0, 0, 0.3);
+    }
+    20%, 22% {
+        opacity: 0.55;
+        text-shadow: none;
+    }
+    60%, 62% {
+        opacity: 0.85;
+        text-shadow:
+            0 0 4px  rgba(255, 190, 50, 0.6),
+            0 0 14px rgba(255, 120, 10, 0.4);
+    }
+    61% {
+        opacity: 0.4;
+        text-shadow: none;
+    }
+}
