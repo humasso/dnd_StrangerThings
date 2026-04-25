@@ -5,9 +5,6 @@
     box-sizing: border-box;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Teachers:ital,wght@0,400..800;1,400..800&display=swap');
-
-
 html, body {
     height: 100%;
 }
@@ -173,7 +170,7 @@ main::before {
 }
 
 .card:hover .card-icon {
-    filter: saturate(var(--icon-saturation)) drop-shadow(rgba(0, 0, 0, 0.9) 0px 14px 28px);
+    filter: saturate(var(--icon-saturation)) drop-shadow(rgba(207, 8, 8, 0.752) 0px 14px 28px);
 }
 
 .card-folder-missing .card-icon {
@@ -182,7 +179,7 @@ main::before {
 
 .card-bg {
     background: rgba(5, 3, 3, 0.94);
-    border-radius: 20px;
+    border-radius: 25px;
     max-width: 90%;
     width: 89%;
     padding: 65px 14px 24px;
@@ -199,8 +196,8 @@ main::before {
 
 .card-label {
     color: rgb(255, 255, 255);
-    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
-    font-size: clamp(23px, 2.2vw, 28px);
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-size: clamp(28px, 2.2vw, 32px);
     letter-spacing: 3px;
     text-transform: uppercase;
     line-height: 1.1;
@@ -219,7 +216,7 @@ main::before {
 
 .content-panel {
     background: rgba(5, 3, 3, 0.92);
-    border-radius: 22px;
+    border-radius: 35px;
     padding: 28px 20px 30px;
     width: 100%;
     max-width: 700px;
@@ -230,7 +227,7 @@ main::before {
 .back-link {
     color: rgba(200, 190, 190, 0.65);
     text-decoration: none;
-    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 13px;
     letter-spacing: 2px;
     display: block;
@@ -244,7 +241,7 @@ main::before {
 
 .page-title {
     color: rgb(255, 255, 255);
-    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 38px;
     letter-spacing: 5px;
     text-align: center;
@@ -311,7 +308,7 @@ main::before {
 
 .book-name {
     color: rgb(255, 255, 255);
-    font-family: "Teachers", "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+    font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
     font-size: 13px;
     letter-spacing: 1.5px;
     text-align: center;
@@ -471,7 +468,7 @@ main::before {
 
 .st-modal-hint {
     margin-top: 36px;
-    font-family: "Teachers", "Bebas Neue", sans-serif;
+    font-family: "Bebas Neue", sans-serif;
     font-size: 0.95rem;
     letter-spacing: 0.18em;
     color: rgba(255, 255, 255, 0.35);
