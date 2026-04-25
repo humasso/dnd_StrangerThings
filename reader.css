@@ -377,48 +377,58 @@ body.page-libretti main::before {
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   z-index: 10;
   min-height: 0;
 }
 
 .tool-rail {
   display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 10px 8px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
-  border-radius: 10px;
-  background: rgba(10, 8, 8, 0.72);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  justify-items: stretch;
+  gap: 12px;
+  padding: 12px 10px;
+  border: 1px solid rgba(255, 244, 230, 0.1);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(18, 12, 12, 0.94), rgba(10, 8, 8, 0.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 230, 0.04),
+    0 18px 40px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
 }
 
 .tool-rail .toolbar-group {
-  padding: 2px;
-  border: 0;
-  background: transparent;
+  display: grid;
+  justify-items: center;
+  padding: 6px 4px;
+  border: 1px solid rgba(255, 244, 230, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 244, 230, 0.03);
   box-shadow: none;
 }
 
 .view-group {
   display: grid;
+  grid-auto-flow: row;
   justify-items: center;
+  gap: 6px;
 }
 
 .zoom-group {
   display: grid;
   justify-items: center;
+  grid-auto-flow: row;
   align-content: start;
+  gap: 8px;
 }
 
 .tools-toggle-button {
-  width: 34px;
-  height: 56px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
-  border-radius: 8px;
-  background: rgba(10, 8, 8, 0.72);
+  width: 36px;
+  height: 60px;
+  border: 1px solid rgba(255, 244, 230, 0.1);
+  border-radius: 12px;
+  background: rgba(10, 8, 8, 0.84);
   color: var(--reader-muted);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -459,8 +469,8 @@ body.page-libretti main::before {
 }
 
 .page-toolbar {
-  min-height: var(--toolbar-height);
-  padding: 8px 0 4px;
+  min-height: auto;
+  padding: 6px 0 4px;
 }
 
 /* ── Icon buttons ── */
@@ -468,18 +478,19 @@ body.page-libretti main::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
   border: 0;
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 12px;
+  background: rgba(255, 244, 230, 0.03);
   color: var(--reader-ink);
   cursor: pointer;
   transition:
     transform 160ms ease,
     background-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .icon-button svg {
@@ -497,6 +508,7 @@ body.page-libretti main::before {
 .icon-button.is-active {
   background: rgba(215, 25, 32, 0.24);
   color: #fff5e8;
+  box-shadow: 0 10px 22px rgba(215, 25, 32, 0.14);
 }
 
 .icon-button:active {
@@ -543,8 +555,8 @@ input:disabled {
 /* ── Zoom ── */
 .zoom-range {
   width: 24px;
-  height: clamp(125px, 17vh, 195px);
-  margin: 2px 0;
+  height: clamp(128px, 19vh, 205px);
+  margin: 4px 0;
   writing-mode: vertical-lr;
   direction: rtl;
   appearance: slider-vertical;
@@ -555,9 +567,10 @@ input:disabled {
 .zoom-value {
   min-width: 0;
   color: var(--reader-muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 800;
   text-align: center;
+  letter-spacing: 0.04em;
 }
 
 /* ── Book stage (PDF rendering area) ── */
@@ -1193,13 +1206,14 @@ input:disabled {
   }
 
   .reader-workspace {
-    grid-template-columns: max-content minmax(0, 1fr);
     gap: 10px;
-    padding: 0 10px;
+    padding: 0 10px 0 94px;
   }
 
   .tools-wrap {
-    position: static;
+    position: absolute;
+    top: 14px;
+    left: 10px;
     transform: none;
     flex-direction: column;
     gap: 6px;
@@ -1218,6 +1232,7 @@ input:disabled {
   .zoom-range {
     width: 22px;
     height: clamp(110px, 18vh, 170px);
+    margin: 2px 0;
   }
 
   .search-panel {
@@ -1271,8 +1286,6 @@ input:disabled {
 
   .toolbar {
     justify-content: center;
-    overflow-x: auto;
-    flex-wrap: nowrap;
   }
 
   .home-button {
