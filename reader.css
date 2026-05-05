@@ -1,26 +1,36 @@
 /* ============================================================
-   READER.CSS — PDF viewer styles (ported from dnd_StrangerThings)
-   Works on top of style.css. Applies to libretti.html only.
+   READER.CSS — PDF viewer styles
+   D&D Stranger Things – Hellfire Club Edition
    ============================================================ */
 
 :root {
-  --reader-bg: #171313;
-  --reader-surface: #0a0808;
-  --reader-surface-strong: #151010;
-  --reader-ink: #fff4e6;
-  --reader-muted: #b9a39b;
-  --reader-line: rgba(255, 244, 230, 0.14);
-  --reader-accent: #d71920;
+  /* Core palette */
+  --reader-bg:            #131010;
+  --reader-surface:       #0a0808;
+  --reader-surface-mid:   #110d0d;
+  --reader-surface-strong:#161010;
+  --reader-ink:           #fff4e6;
+  --reader-muted:         #b9a39b;
+  --reader-line:          rgba(255, 244, 230, 0.11);
+  --reader-accent:        #d71920;
   --reader-accent-strong: #ff3038;
-  --reader-accent-soft: rgba(215, 25, 32, 0.18);
-  --reader-paper: #fffdfa;
+  --reader-accent-soft:   rgba(215, 25, 32, 0.16);
+  --reader-accent-glow:   rgba(215, 25, 32, 0.42);
+  --reader-paper:         #fffdfa;
+
+  /* Layout */
   --toolbar-height: 62px;
+  --tools-width:    72px;
+  --panel-width:    310px;
+
+  /* Transitions */
+  --t-fast: 160ms ease;
+  --t-med:  240ms ease;
+  --t-slow: 380ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* Prevent display: grid/flex rules from overriding [hidden] */
-[hidden] {
-  display: none !important;
-}
+/* ── Prevent [hidden] from being overridden ── */
+[hidden] { display: none !important; }
 
 /* ── Body overrides for reader page ── */
 body.page-libretti {
@@ -32,15 +42,13 @@ body.page-libretti header {
   justify-content: center;
 }
 
-/* Reset style.css main rules that break the reader layout */
 body.page-libretti main {
   padding: 0;
   align-items: stretch;
   justify-content: normal;
-  /* z-index: 2 inherited from style.css main rule — keeps content above body::before overlay */
 }
 
-/* ── reader-app: fills the remaining height below the header ── */
+/* ── Reader app container ── */
 .reader-app {
   flex: 1;
   display: flex;
@@ -48,54 +56,94 @@ body.page-libretti main {
   min-height: 0;
   overflow: hidden;
   position: relative;
-  z-index: 2; /* above body::before dark overlay (z-index: 1) */
+  z-index: 2;
 }
 
-/* ── Home screen (carousel) ── */
+/* ── Progress bar ── */
+.reader-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--reader-accent), var(--reader-accent-strong), #ff8a00);
+  z-index: 9999;
+  transition: width 300ms ease, opacity 400ms ease;
+  opacity: 0;
+  box-shadow: 0 0 10px var(--reader-accent-glow);
+  pointer-events: none;
+}
+
+.reader-progress-bar.is-visible {
+  opacity: 1;
+}
+
+/* ── Home screen ── */
 .home-screen {
   flex: 1;
   position: relative;
   display: grid;
-  grid-template-columns: 1fr;   /* explicit column — fixes circular 100% resolution */
-  justify-content: stretch;     /* undo justify-content:center from style.css main rule */
-  justify-items: center;        /* center hellfire-frame horizontally within the column */
+  grid-template-columns: 1fr;
+  justify-items: center;
   align-items: center;
   min-height: 0;
   padding: clamp(12px, 2.4vw, 30px);
 }
 
-/* Disable the main::before gradient overlay on the reader page */
 body.page-libretti main::before {
   display: none;
 }
 
+/* ── Hellfire Frame ── */
 .hellfire-frame {
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(100%, 1120px);
-  min-height: min(76vh, 720px);
+  width: min(100%, 1140px);
+  min-height: min(76vh, 730px);
   padding: clamp(22px, 4vw, 60px);
   overflow: hidden;
-  border: 1px solid rgba(255, 244, 230, 0.08);
-  border-radius: clamp(18px, 4vw, 42px);
+  border-radius: clamp(18px, 4vw, 44px);
+
+  /* Gradient border via background-clip */
+  border: 1px solid transparent;
   background:
-    linear-gradient(#030303, #030303) padding-box,
-    linear-gradient(135deg, rgba(255, 49, 56, 0.95), rgba(76, 0, 3, 0.88), rgba(255, 49, 56, 0.65)) border-box;
+    linear-gradient(#060404, #060404) padding-box,
+    linear-gradient(
+      135deg,
+      rgba(255, 49, 56, 0.9) 0%,
+      rgba(90, 3, 7, 0.85) 48%,
+      rgba(255, 49, 56, 0.6) 100%
+    ) border-box;
+
   box-shadow:
-    inset 0 0 0 3px rgba(88, 5, 9, 0.84),
-    inset 0 0 52px rgba(142, 8, 13, 0.58),
-    0 28px 80px rgba(0, 0, 0, 0.58);
+    inset 0 0 0 2px rgba(88, 5, 9, 0.72),
+    inset 0 0 60px rgba(140, 8, 12, 0.52),
+    0 32px 90px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(215, 25, 32, 0.08);
 }
 
+/* Inner border accent */
 .hellfire-frame::before {
   content: "";
   position: absolute;
-  inset: 14px;
-  border: 1px solid rgba(215, 25, 32, 0.35);
+  inset: 12px;
+  border: 1px solid rgba(215, 25, 32, 0.28);
   border-radius: inherit;
   pointer-events: none;
-  box-shadow: inset 0 0 32px rgba(215, 25, 32, 0.23);
+  box-shadow: inset 0 0 40px rgba(215, 25, 32, 0.18);
+}
+
+/* Corner ornament glow */
+.hellfire-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 42% 28% at 50% 0%, rgba(215, 25, 32, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 20% at 50% 100%, rgba(120, 5, 10, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .hellfire-frame h1 {
@@ -107,9 +155,10 @@ body.page-libretti main::before {
   font-weight: 1000;
   text-align: center;
   text-transform: uppercase;
+  letter-spacing: 0.1em;
   text-shadow:
     0 3px 0 #64050a,
-    0 0 12px rgba(255, 49, 56, 0.7);
+    0 0 16px rgba(255, 49, 56, 0.65);
 }
 
 /* ── Carousel ── */
@@ -124,13 +173,13 @@ body.page-libretti main::before {
 
 .book-carousel {
   position: relative;
-  min-height: clamp(310px, 48vh, 520px);
+  min-height: clamp(310px, 48vh, 530px);
   overflow: hidden;
   touch-action: pan-y;
 }
 
 .book-card {
-  --carousel-step: clamp(116px, 17vw, 224px);
+  --carousel-step: clamp(116px, 17vw, 228px);
   --card-scale: calc(1 - (var(--abs-offset) * 0.15));
   position: absolute;
   top: 52%;
@@ -138,7 +187,7 @@ body.page-libretti main::before {
   display: grid;
   justify-items: center;
   gap: 9px;
-  width: clamp(126px, 17vw, 230px);
+  width: clamp(126px, 17vw, 232px);
   padding: 0;
   border: 0;
   background: transparent;
@@ -157,48 +206,49 @@ body.page-libretti main::before {
 }
 
 .book-carousel.is-switch-next .book-card {
-  animation: carouselCardSlideNext 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: carouselCardSlideNext var(--t-slow) both;
 }
 
 .book-carousel.is-switch-prev .book-card {
-  animation: carouselCardSlidePrev 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: carouselCardSlidePrev var(--t-slow) both;
 }
 
 .book-carousel.is-switch-next .book-card[aria-current="true"],
 .book-carousel.is-switch-prev .book-card[aria-current="true"] {
-  animation-duration: 380ms;
-  box-shadow: 0 0 0 0 rgba(255, 49, 56, 0.0);
+  animation-duration: 400ms;
 }
 
 .book-card:not([aria-current="true"]) {
-  filter: brightness(0.46) saturate(0.74);
+  filter: brightness(0.44) saturate(0.7);
 }
 
 .book-card:hover,
 .book-card:focus-visible {
   opacity: 1;
-  filter: brightness(1) saturate(1.05);
+  filter: brightness(1) saturate(1.08);
   outline: 0;
 }
 
+/* Book cover thumbnail */
 .book-cover {
   position: relative;
   width: 100%;
   aspect-ratio: 0.72;
   overflow: hidden;
-  border: 1px solid rgba(255, 244, 230, 0.16);
-  border-radius: 2px;
+  border: 1px solid rgba(255, 244, 230, 0.14);
+  border-radius: 3px;
   background: #1a1111;
   box-shadow:
-    0 18px 26px rgba(0, 0, 0, 0.52),
-    0 0 0 1px rgba(215, 25, 32, 0.28);
+    0 20px 30px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(215, 25, 32, 0.22);
+  transition: box-shadow var(--t-med);
 }
 
 .book-card[aria-current="true"] .book-cover {
   box-shadow:
-    0 24px 46px rgba(0, 0, 0, 0.62),
-    0 0 0 2px rgba(255, 49, 56, 0.68),
-    0 0 32px rgba(255, 49, 56, 0.34);
+    0 28px 52px rgba(0,0,0,0.65),
+    0 0 0 2px rgba(255, 49, 56, 0.72),
+    0 0 40px rgba(255, 49, 56, 0.3);
 }
 
 .book-cover img,
@@ -222,8 +272,28 @@ body.page-libretti main::before {
   text-align: center;
   text-transform: uppercase;
   background:
-    radial-gradient(circle at center, rgba(255, 49, 56, 0.22), transparent 54%),
+    radial-gradient(circle at center, rgba(255,49,56,0.2), transparent 54%),
     #140b0b;
+}
+
+/* Skeleton shimmer for loading covers */
+.cover-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255,244,230,0.04) 25%,
+    rgba(215,25,32,0.08) 50%,
+    rgba(255,244,230,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
 .book-category,
@@ -237,42 +307,59 @@ body.page-libretti main::before {
 }
 
 .book-category {
-  color: rgba(255, 244, 230, 0.62);
+  color: rgba(255, 244, 230, 0.58);
   font-size: clamp(0.58rem, 0.9vw, 0.72rem);
   font-weight: 850;
+  letter-spacing: 0.08em;
 }
 
 .book-title {
   color: #fff5e8;
-  font-size: clamp(0.66rem, 1vw, 0.82rem);
+  font-size: clamp(0.66rem, 1vw, 0.84rem);
   font-weight: 1000;
   text-shadow: 0 2px 0 #650509;
+  letter-spacing: 0.04em;
 }
 
+/* Carousel navigation buttons */
 .carousel-nav {
   position: relative;
   z-index: 2;
   display: grid;
   place-items: center;
-  width: clamp(36px, 5vw, 46px);
-  height: clamp(48px, 8vw, 64px);
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  width: clamp(36px, 5vw, 48px);
+  height: clamp(48px, 8vw, 66px);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
   background: rgba(255, 244, 230, 0.04);
-  color: rgba(255, 244, 230, 0.76);
+  color: rgba(255, 244, 230, 0.72);
   cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
 }
 
 .carousel-nav:hover {
-  background: rgba(215, 25, 32, 0.18);
+  background: rgba(215, 25, 32, 0.2);
   color: #fff5e8;
+  border-color: rgba(215, 25, 32, 0.4);
 }
 
 .carousel-nav:disabled {
-  opacity: 0.24;
+  opacity: 0.22;
   cursor: default;
 }
 
+.carousel-nav svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Carousel dots */
 .carousel-dots {
   position: relative;
   z-index: 1;
@@ -280,6 +367,7 @@ body.page-libretti main::before {
   justify-content: center;
   gap: 8px;
   min-height: 18px;
+  padding-top: 4px;
 }
 
 .carousel-dot {
@@ -288,24 +376,58 @@ body.page-libretti main::before {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 244, 230, 0.42);
+  background: rgba(255, 244, 230, 0.38);
   cursor: pointer;
+  transition: background var(--t-med), box-shadow var(--t-med), width var(--t-med);
 }
 
 .carousel-dot.is-active {
   background: #fff5e8;
-  box-shadow: 0 0 10px rgba(255, 49, 56, 0.9);
+  box-shadow: 0 0 10px var(--reader-accent-glow);
+  width: 20px; /* active dot stretches */
 }
 
-/* ── Back button (home-button) inside our header ── */
+/* ── Open Book button (CTA inside carousel) ── */
+.open-book-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 0 18px;
+  height: 40px;
+  border: 1px solid var(--reader-accent);
+  border-radius: 8px;
+  background: var(--reader-accent-soft);
+  color: var(--reader-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--t-med), transform var(--t-med), background var(--t-fast);
+}
+
+.book-card[aria-current="true"] .open-book-cta {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.open-book-cta:hover {
+  background: rgba(215, 25, 32, 0.28);
+}
+
+/* ── Back button (header) ── */
 .home-button {
   position: absolute;
   left: clamp(14px, 4vw, 52px);
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -314,11 +436,12 @@ body.page-libretti main::before {
   background: rgba(255, 244, 230, 0.05);
   color: var(--reader-ink);
   cursor: pointer;
-  transition: background 160ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast);
 }
 
 .home-button:hover {
-  background: rgba(215, 25, 32, 0.24);
+  background: rgba(215, 25, 32, 0.22);
+  border-color: rgba(215, 25, 32, 0.35);
 }
 
 .home-button svg {
@@ -336,9 +459,9 @@ body.page-libretti main::before {
 .reader-layout {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 330px);
+  grid-template-columns: minmax(0, 1fr) minmax(var(--panel-width), 340px);
   min-height: 0;
-  background: rgba(5, 4, 4, 0.5);
+  background: rgba(5, 4, 4, 0.48);
 }
 
 .reader-layout.search-hidden {
@@ -350,7 +473,6 @@ body.page-libretti main::before {
   grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
-  background: transparent;
 }
 
 .reader-workspace {
@@ -389,61 +511,72 @@ body.page-libretti main::before {
   padding: 12px 10px;
   border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(18, 12, 12, 0.94), rgba(10, 8, 8, 0.88));
+  background: linear-gradient(180deg, rgba(18, 12, 12, 0.96), rgba(10, 8, 8, 0.9));
   box-shadow:
     inset 0 1px 0 rgba(255, 244, 230, 0.04),
-    0 18px 40px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(10px);
+    0 18px 42px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(12px);
+  transition: opacity var(--t-med), transform var(--t-med);
+}
+
+.tools-wrap.is-collapsed .tool-rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
 }
 
 .tool-rail .toolbar-group {
   display: grid;
   justify-items: center;
   padding: 6px 4px;
-  border: 1px solid rgba(255, 244, 230, 0.08);
+  border: 1px solid rgba(255, 244, 230, 0.07);
   border-radius: 12px;
-  background: rgba(255, 244, 230, 0.03);
-  box-shadow: none;
+  background: rgba(255, 244, 230, 0.025);
 }
 
 .view-group {
-  display: grid;
   grid-auto-flow: row;
   justify-items: center;
   gap: 6px;
 }
 
 .zoom-group {
-  display: grid;
-  justify-items: center;
   grid-auto-flow: row;
+  justify-items: center;
   align-content: start;
   gap: 8px;
 }
 
+/* Tools collapse toggle */
 .tools-toggle-button {
   width: 36px;
   height: 60px;
   border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 12px;
-  background: rgba(10, 8, 8, 0.84);
+  background: rgba(10, 8, 8, 0.86);
   color: var(--reader-muted);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.tools-toggle-button:hover {
+  background: rgba(215, 25, 32, 0.18);
+  color: var(--reader-ink);
 }
 
 .tools-toggle-button svg {
-  transition: transform 160ms ease;
+  transition: transform var(--t-fast);
 }
 
 .tools-wrap.is-collapsed .tools-toggle-button svg {
   transform: rotate(180deg);
 }
 
-/* ── Toolbar ── */
+/* ── Page toolbar (bottom controls) ── */
 .toolbar {
   display: flex;
   align-items: center;
@@ -458,15 +591,13 @@ body.page-libretti main::before {
   align-items: center;
   gap: 8px;
   padding: 6px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(10, 8, 8, 0.72);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  background: rgba(10, 8, 8, 0.76);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.32);
 }
 
-.page-group {
-  justify-content: center;
-}
+.page-group { justify-content: center; }
 
 .page-toolbar {
   min-height: auto;
@@ -487,10 +618,10 @@ body.page-libretti main::before {
   color: var(--reader-ink);
   cursor: pointer;
   transition:
-    transform 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease;
+    transform var(--t-fast),
+    background-color var(--t-fast),
+    color var(--t-fast),
+    box-shadow var(--t-fast);
 }
 
 .icon-button svg {
@@ -506,9 +637,14 @@ body.page-libretti main::before {
 
 .icon-button:hover,
 .icon-button.is-active {
-  background: rgba(215, 25, 32, 0.24);
+  background: rgba(215, 25, 32, 0.22);
   color: #fff5e8;
-  box-shadow: 0 10px 22px rgba(215, 25, 32, 0.14);
+  box-shadow: 0 0 0 1px rgba(215, 25, 32, 0.25), 0 8px 20px rgba(215, 25, 32, 0.14);
+}
+
+.icon-button.is-active {
+  background: rgba(215, 25, 32, 0.3);
+  box-shadow: 0 0 0 1px rgba(215, 25, 32, 0.4), 0 0 14px rgba(215, 25, 32, 0.22);
 }
 
 .icon-button:active {
@@ -518,10 +654,10 @@ body.page-libretti main::before {
 .icon-button:disabled,
 input:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
-/* ── Page jump (page input) ── */
+/* ── Page input / jump ── */
 .page-jump {
   display: inline-flex;
   align-items: center;
@@ -529,8 +665,8 @@ input:disabled {
   height: 40px;
   padding: 0 10px;
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  background: rgba(255, 244, 230, 0.05);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   color: var(--reader-muted);
   font-weight: 700;
 }
@@ -545,6 +681,7 @@ input:disabled {
   font-weight: 800;
   text-align: center;
   font: inherit;
+  transition: border-color var(--t-fast);
 }
 
 .page-jump input:focus {
@@ -552,10 +689,10 @@ input:disabled {
   border-bottom-color: var(--reader-accent);
 }
 
-/* ── Zoom ── */
+/* ── Zoom slider ── */
 .zoom-range {
   width: 24px;
-  height: clamp(128px, 19vh, 205px);
+  height: clamp(128px, 19vh, 208px);
   margin: 4px 0;
   writing-mode: vertical-lr;
   direction: rtl;
@@ -580,11 +717,58 @@ input:disabled {
   min-height: 0;
   overflow: auto;
   padding: clamp(14px, 2.5vw, 28px);
-  border-top: 1px solid rgba(255, 244, 230, 0.07);
+  border-top: 1px solid rgba(255, 244, 230, 0.06);
   touch-action: pan-y pinch-zoom;
   scroll-behavior: smooth;
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 25, 32, 0.35) transparent;
 }
 
+.book-stage::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.book-stage::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.book-stage::-webkit-scrollbar-thumb {
+  background: rgba(215, 25, 32, 0.38);
+  border-radius: 3px;
+}
+
+.book-stage::-webkit-scrollbar-thumb:hover {
+  background: rgba(215, 25, 32, 0.6);
+}
+
+/* ── Loading state ── */
+.loading-page {
+  display: grid;
+  place-items: center;
+  width: 320px;
+  height: 440px;
+  color: var(--reader-muted);
+  font-weight: 800;
+  gap: 16px;
+}
+
+.loading-page::before {
+  content: "";
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(215, 25, 32, 0.2);
+  border-top-color: var(--reader-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Empty state ── */
 .empty-state {
   align-self: center;
   justify-self: center;
@@ -592,11 +776,11 @@ input:disabled {
   place-items: center;
   gap: 18px;
   min-width: min(420px, 90%);
-  padding: 34px;
-  border: 1px dashed rgba(215, 25, 32, 0.34);
-  border-radius: 8px;
-  background: rgba(10, 8, 8, 0.82);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4);
+  padding: 36px;
+  border: 1px dashed rgba(215, 25, 32, 0.3);
+  border-radius: 10px;
+  background: rgba(10, 8, 8, 0.84);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.44);
 }
 
 .empty-title {
@@ -608,6 +792,7 @@ input:disabled {
 
 .empty-icon {
   color: var(--reader-accent);
+  opacity: 0.7;
 }
 
 .empty-icon svg {
@@ -624,15 +809,15 @@ input:disabled {
 .empty-icon svg path:first-child,
 .empty-icon svg path:nth-child(2) {
   fill: currentColor;
-  opacity: 0.12;
+  opacity: 0.1;
 }
 
-/* ── Spread / pages ── */
+/* ── Spread / page containers ── */
 .spread {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(14px, 2vw, 26px);
+  gap: clamp(14px, 2vw, 28px);
   min-width: max-content;
   min-height: 100%;
   margin: auto;
@@ -645,7 +830,31 @@ input:disabled {
   overflow: hidden;
   border-radius: 7px;
   background: var(--reader-paper);
-  box-shadow: none;
+  /* Subtle drop shadow */
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.08),
+    0 8px 24px rgba(0,0,0,0.22),
+    0 24px 60px rgba(0,0,0,0.36);
+  transition: box-shadow var(--t-med);
+}
+
+/* Spread view: left/right page edge shadows for book feel */
+.page-shell.is-left {
+  border-radius: 2px 7px 7px 2px;
+  box-shadow:
+    -1px 0 6px rgba(0,0,0,0.18),
+    0 8px 24px rgba(0,0,0,0.24),
+    0 24px 60px rgba(0,0,0,0.38),
+    inset 3px 0 12px rgba(0,0,0,0.14);
+}
+
+.page-shell.is-right {
+  border-radius: 7px 2px 2px 7px;
+  box-shadow:
+    1px 0 6px rgba(0,0,0,0.18),
+    0 8px 24px rgba(0,0,0,0.24),
+    0 24px 60px rgba(0,0,0,0.38),
+    inset -3px 0 12px rgba(0,0,0,0.12);
 }
 
 .page-shell::after {
@@ -653,15 +862,17 @@ input:disabled {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(35, 33, 29, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(35, 33, 29, 0.07);
+  border-radius: inherit;
 }
 
+/* Page turn animations */
 .book-stage.is-turning-forward .page-shell {
-  animation: turnForward 220ms ease both;
+  animation: turnForward 230ms ease both;
 }
 
 .book-stage.is-turning-back .page-shell {
-  animation: turnBack 220ms ease both;
+  animation: turnBack 230ms ease both;
 }
 
 .pdf-canvas {
@@ -705,12 +916,12 @@ input:disabled {
 
 .textLayer span.search-hit {
   border-radius: 2px;
-  background: rgba(252, 201, 90, 0.36);
-  box-shadow: 0 0 0 2px rgba(252, 201, 90, 0.24);
+  background: rgba(252, 201, 90, 0.38);
+  box-shadow: 0 0 0 2px rgba(252, 201, 90, 0.22);
 }
 
 .textLayer ::selection {
-  background: rgba(215, 25, 32, 0.28);
+  background: rgba(215, 25, 32, 0.26);
 }
 
 .linkLayer {
@@ -720,51 +931,44 @@ input:disabled {
 
 .pdf-link {
   position: absolute;
-  border-radius: 4px;
+  border-radius: 3px;
   pointer-events: auto;
 }
 
 .pdf-link:hover,
 .pdf-link:focus-visible {
-  outline: 2px solid rgba(215, 25, 32, 0.48);
+  outline: 2px solid rgba(215, 25, 32, 0.46);
   outline-offset: 1px;
-  background: rgba(215, 25, 32, 0.1);
+  background: rgba(215, 25, 32, 0.08);
 }
 
+/* Saved highlights */
 .saved-highlight {
   position: absolute;
   padding: 0;
   border: 0;
   border-radius: 3px;
-  background: rgba(252, 201, 90, 0.42);
-  box-shadow: 0 0 0 1px rgba(188, 131, 29, 0.18);
+  background: rgba(252, 201, 90, 0.4);
+  box-shadow: 0 0 0 1px rgba(188, 131, 29, 0.16);
   pointer-events: auto;
-  transition: background-color 160ms ease, box-shadow 160ms ease;
+  transition: background-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .saved-highlight:hover,
 .saved-highlight.is-active {
   background: rgba(252, 201, 90, 0.62);
-  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.36);
+  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.35);
 }
 
-.loading-page {
-  display: grid;
-  place-items: center;
-  width: 320px;
-  height: 440px;
-  color: var(--reader-muted);
-  font-weight: 800;
-}
-
-/* ── Search / bookmark side panel ── */
+/* ── Search / Bookmark side panel ── */
 .search-panel {
   display: grid;
   min-width: 0;
   min-height: 0;
   padding: 16px;
-  border-left: 1px solid rgba(255, 244, 230, 0.12);
-  background: rgba(10, 8, 8, 0.72);
+  border-left: 1px solid rgba(255, 244, 230, 0.1);
+  background: rgba(10, 8, 8, 0.74);
+  backdrop-filter: blur(8px);
 }
 
 .reader-layout.search-hidden .search-panel {
@@ -788,10 +992,16 @@ input:disabled {
   gap: 10px;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
+  background: rgba(255, 244, 230, 0.05);
   color: var(--reader-muted);
+  transition: border-color var(--t-fast);
+}
+
+.search-box:focus-within {
+  border-color: rgba(215, 25, 32, 0.4);
+  box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.08);
 }
 
 .search-box svg {
@@ -836,6 +1046,17 @@ input:disabled {
   min-height: 0;
   overflow: auto;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 25, 32, 0.3) transparent;
+}
+
+.result-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.result-list::-webkit-scrollbar-thumb {
+  background: rgba(215, 25, 32, 0.3);
+  border-radius: 2px;
 }
 
 .result-item {
@@ -843,19 +1064,26 @@ input:disabled {
   gap: 4px;
   width: 100%;
   padding: 10px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
+  background: rgba(255, 244, 230, 0.05);
   color: var(--reader-ink);
   text-align: left;
   cursor: pointer;
   font: inherit;
+  transition:
+    border-color var(--t-fast),
+    background-color var(--t-fast);
 }
 
 .result-item:hover,
 .result-item.is-active {
   border-color: rgba(215, 25, 32, 0.35);
   background: var(--reader-accent-soft);
+}
+
+.result-item.is-active {
+  border-color: rgba(215, 25, 32, 0.52);
 }
 
 .result-page {
@@ -874,7 +1102,7 @@ input:disabled {
   -webkit-line-clamp: 2;
 }
 
-/* ── Bookmarks ── */
+/* ── Bookmarks panel ── */
 .bookmarks-header {
   display: flex;
   align-items: center;
@@ -901,6 +1129,7 @@ input:disabled {
   background: var(--reader-accent);
   color: #fff5e8;
   font-weight: 850;
+  font-size: 0.84rem;
 }
 
 .bookmark-list {
@@ -910,6 +1139,17 @@ input:disabled {
   min-height: 0;
   overflow: auto;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 25, 32, 0.3) transparent;
+}
+
+.bookmark-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bookmark-list::-webkit-scrollbar-thumb {
+  background: rgba(215, 25, 32, 0.3);
+  border-radius: 2px;
 }
 
 .bookmark-item {
@@ -924,13 +1164,16 @@ input:disabled {
   gap: 4px;
   min-width: 0;
   padding: 10px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
+  background: rgba(255, 244, 230, 0.05);
   color: var(--reader-ink);
   text-align: left;
   cursor: pointer;
   font: inherit;
+  transition:
+    border-color var(--t-fast),
+    background-color var(--t-fast);
 }
 
 .bookmark-main:hover,
@@ -968,15 +1211,16 @@ input:disabled {
   width: 36px;
   height: 36px;
   min-height: 36px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
+  background: rgba(255, 244, 230, 0.05);
   color: var(--reader-muted);
 }
 
 .bookmark-delete:hover {
-  background: rgba(155, 61, 46, 0.4);
+  background: rgba(155, 61, 46, 0.38);
   color: #f6bdb3;
+  border-color: rgba(155, 61, 46, 0.45);
 }
 
 .empty-list {
@@ -995,18 +1239,26 @@ input:disabled {
   color: var(--reader-muted);
   font-size: 0.86rem;
   font-weight: 650;
+  border-top: 1px solid rgba(255, 244, 230, 0.05);
 }
 
-/* ── Selection menu ── */
+/* ── Selection menu (float above selection) ── */
 .selection-menu {
   position: fixed;
   z-index: 30;
   padding: 4px;
   border: 1px solid rgba(255, 244, 230, 0.12);
   border-radius: 8px;
-  background: rgba(18, 12, 12, 0.96);
+  background: rgba(16, 10, 10, 0.97);
   color: var(--reader-ink);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(215, 25, 32, 0.12);
+  backdrop-filter: blur(8px);
+  animation: pop-in 120ms ease both;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
 }
 
 .selection-menu button {
@@ -1020,8 +1272,8 @@ input:disabled {
   background: transparent;
   color: var(--reader-ink);
   cursor: pointer;
-  font-weight: 800;
   font: inherit;
+  font-weight: 800;
 }
 
 .selection-menu button svg {
@@ -1045,15 +1297,15 @@ input:disabled {
   width: min(420px, calc(100vw - 32px));
   padding: 0;
   border: 1px solid rgba(255, 244, 230, 0.14);
-  border-radius: 8px;
-  background: rgba(18, 12, 12, 0.96);
+  border-radius: 10px;
+  background: rgba(16, 10, 10, 0.97);
   color: var(--reader-ink);
-  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(215, 25, 32, 0.1);
 }
 
 .bookmark-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
 }
 
 .bookmark-form {
@@ -1086,17 +1338,18 @@ input:disabled {
   width: 100%;
   min-height: 42px;
   padding: 0 11px;
-  border: 1px solid rgba(255, 244, 230, 0.12);
+  border: 1px solid rgba(255, 244, 230, 0.1);
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.06);
+  background: rgba(255, 244, 230, 0.05);
   color: var(--reader-ink);
   outline: 0;
   font: inherit;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .text-field:focus {
-  border-color: rgba(215, 25, 32, 0.55);
-  box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.13);
+  border-color: rgba(215, 25, 32, 0.52);
+  box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.12);
 }
 
 .bookmark-context {
@@ -1127,12 +1380,13 @@ input:disabled {
   background: transparent;
   color: var(--reader-ink);
   cursor: pointer;
-  font-weight: 800;
   font: inherit;
+  font-weight: 800;
+  transition: background var(--t-fast);
 }
 
 .text-button:hover {
-  background: rgba(255, 244, 230, 0.08);
+  background: rgba(255, 244, 230, 0.07);
 }
 
 .text-button-primary {
@@ -1146,26 +1400,24 @@ input:disabled {
 
 /* ── Animations ── */
 @keyframes turnForward {
-  from { opacity: 0.2; transform: translateX(22px) rotateY(-4deg); }
-  to   { opacity: 1;   transform: translateX(0)    rotateY(0); }
+  from { opacity: 0.15; transform: translateX(24px) rotateY(-5deg); }
+  to   { opacity: 1;    transform: translateX(0)    rotateY(0); }
 }
 
 @keyframes turnBack {
-  from { opacity: 0.2; transform: translateX(-22px) rotateY(4deg); }
-  to   { opacity: 1;   transform: translateX(0)     rotateY(0); }
+  from { opacity: 0.15; transform: translateX(-24px) rotateY(5deg); }
+  to   { opacity: 1;    transform: translateX(0)      rotateY(0); }
 }
 
 @keyframes carouselCardSlideNext {
   from {
-    opacity: 0.18;
+    opacity: 0.16;
     transform:
       translate(-50%, -50%)
-      translateX(calc((var(--offset) * var(--carousel-step)) + 44px))
+      translateX(calc((var(--offset) * var(--carousel-step)) + 48px))
       scale(calc(var(--card-scale) * 0.96));
   }
-  55% {
-    opacity: 1;
-  }
+  55% { opacity: 1; }
   to {
     opacity: calc(1 - (var(--abs-offset) * 0.27));
     transform:
@@ -1177,15 +1429,13 @@ input:disabled {
 
 @keyframes carouselCardSlidePrev {
   from {
-    opacity: 0.18;
+    opacity: 0.16;
     transform:
       translate(-50%, -50%)
-      translateX(calc((var(--offset) * var(--carousel-step)) - 44px))
+      translateX(calc((var(--offset) * var(--carousel-step)) - 48px))
       scale(calc(var(--card-scale) * 0.96));
   }
-  55% {
-    opacity: 1;
-  }
+  55% { opacity: 1; }
   to {
     opacity: calc(1 - (var(--abs-offset) * 0.27));
     transform:
@@ -1238,7 +1488,7 @@ input:disabled {
   .search-panel {
     max-height: 34vh;
     border-left: 0;
-    border-top: 1px solid rgba(255, 244, 230, 0.12);
+    border-top: 1px solid rgba(255, 244, 230, 0.1);
   }
 
   .hellfire-frame {
@@ -1266,12 +1516,12 @@ input:disabled {
   }
 
   .book-carousel {
-    min-height: min(62vh, 480px);
+    min-height: min(62vh, 490px);
   }
 
   .book-card {
-    width: clamp(118px, 42vw, 190px);
-    --carousel-step: clamp(86px, 30vw, 132px);
+    width: clamp(118px, 42vw, 194px);
+    --carousel-step: clamp(86px, 30vw, 134px);
     --card-scale: calc(1 - (var(--abs-offset) * 0.16));
   }
 
