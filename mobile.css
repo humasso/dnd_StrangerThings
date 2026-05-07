@@ -308,13 +308,16 @@
     flex: 1;
     min-height: 0;
     padding: 8px 6px;
+    padding-bottom: clamp(16px, 6vh, 52px);
     border-top: none;
     /* Abilita scroll orizzontale se PDF più largo dello schermo */
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     /* Pinch zoom nativo */
     touch-action: pan-x pan-y pinch-zoom;
-    margin-bottom: 12%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* Pagina PDF: occupa tutta la larghezza disponibile */
