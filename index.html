@@ -2,22 +2,26 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Page - Welcome to the Hellfire Club</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#060404">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Welcome to the Hellfire Club – D&D Stranger Things</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
 </head>
 <body>
 
     <header>
         <div class="header-logo header-logo-left">
-            <img src="assets/header/Titolo - DnD.png" alt="Dungeons & Dragons" class="header-img">
+            <img src="assets/header/Titolo - DnD.png" alt="Dungeons &amp; Dragons" class="header-img">
         </div>
 
         <a href="index.html" class="header-center" aria-label="Torna alla home">
-            <img src="assets/header/Titolo.png" class="header-img">
+            <img src="assets/header/Titolo.png" class="header-img" alt="Hellfire Club">
         </a>
 
         <div class="header-logo header-logo-right">
@@ -30,31 +34,34 @@
 
             <!-- LIBRETTI — disponibile -->
             <a href="pages/libretti.html" class="card" id="librettiCard">
-                <img src="assets/icons/libretti.png" alt="Libretti" class="card-icon">
+                <img src="assets/icons/libretti.png" alt="" class="card-icon" aria-hidden="true">
                 <div class="card-bg">
                     <span class="card-label">LIBRETTI</span>
                 </div>
             </a>
 
             <!-- CARTE — non disponibile -->
-            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="assets/icons/carte.png" alt="Carte" class="card-icon">
+            <button type="button" class="card card-folder-missing"
+                onclick="showUnavailable()" aria-label="Carte – non disponibile">
+                <img src="assets/icons/carte.png" alt="" class="card-icon" aria-hidden="true">
                 <div class="card-bg">
                     <span class="card-label">CARTE</span>
                 </div>
             </button>
 
             <!-- SCHEDE GIOCATORI — non disponibile -->
-            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="assets/icons/schede_giocatori.png" alt="Schede Giocatori" class="card-icon">
+            <button type="button" class="card card-folder-missing"
+                onclick="showUnavailable()" aria-label="Schede Giocatori – non disponibile">
+                <img src="assets/icons/schede_giocatori.png" alt="" class="card-icon" aria-hidden="true">
                 <div class="card-bg">
                     <span class="card-label">SCHEDE<br>GIOCATORI</span>
                 </div>
             </button>
 
             <!-- SCHERMO MASTER — non disponibile -->
-            <button type="button" class="card card-folder-missing" onclick="showUnavailable()">
-                <img src="assets/icons/schermo_master.webp" alt="Schermo Master" class="card-icon">
+            <button type="button" class="card card-folder-missing"
+                onclick="showUnavailable()" aria-label="Schermo Master – non disponibile">
+                <img src="assets/icons/schermo_master.webp" alt="" class="card-icon" aria-hidden="true">
                 <div class="card-bg">
                     <span class="card-label">SCHERMO<br>MASTER</span>
                 </div>
@@ -64,7 +71,9 @@
     </main>
 
     <!-- Modal "Attualmente non disponibile" -->
-    <div class="st-modal" id="stModal" role="dialog" aria-modal="true" aria-label="Contenuto non disponibile" onclick="hideUnavailable()">
+    <div class="st-modal" id="stModal"
+        role="dialog" aria-modal="true" aria-label="Contenuto non disponibile"
+        onclick="hideUnavailable()">
         <div class="st-modal-inner">
             <p class="st-modal-label">Attualmente<br>non disponibile</p>
             <p class="st-modal-hint">tocca ovunque per chiudere</p>
@@ -72,44 +81,32 @@
     </div>
 
     <script>
+        /* ── Modal ── */
         function showUnavailable() {
-            document.getElementById('stModal').classList.add('visible');
+            document.getElementById("stModal").classList.add("visible");
         }
         function hideUnavailable() {
-            document.getElementById('stModal').classList.remove('visible');
+            document.getElementById("stModal").classList.remove("visible");
         }
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") hideUnavailable();
+        });
 
+        /* ── Libretti card availability check ── */
         async function updateLibrettiIcon() {
-            const librettiCard = document.getElementById('librettiCard');
-            if (!librettiCard) {
-                return;
-            }
-
+            const card = document.getElementById("librettiCard");
+            if (!card) return;
             try {
-                const response = await fetch('assets/contenuti/libretti/books.json', {
-                    cache: 'no-store'
-                });
-
-                if (!response.ok) {
-                    librettiCard.classList.add('card-folder-missing');
-                    return;
-                }
-
-                const books = await response.json();
-                const hasBooks = Array.isArray(books) && books.length > 0;
-                librettiCard.classList.toggle('card-folder-missing', !hasBooks);
-            } catch (error) {
-                librettiCard.classList.add('card-folder-missing');
+                const r = await fetch("assets/contenuti/libretti/books.json", { cache: "no-store" });
+                if (!r.ok) { card.classList.add("card-folder-missing"); return; }
+                const books = await r.json();
+                card.classList.toggle("card-folder-missing", !Array.isArray(books) || !books.length);
+            } catch {
+                card.classList.add("card-folder-missing");
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            updateLibrettiIcon();
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') hideUnavailable();
-        });
+        document.addEventListener("DOMContentLoaded", updateLibrettiIcon);
     </script>
 
 </body>

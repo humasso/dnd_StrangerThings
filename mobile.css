@@ -1,0 +1,766 @@
+/* ============================================================
+   MOBILE.CSS — Ottimizzazioni mobile per D&D Hellfire Club
+   Importato DOPO reader.css e style.css
+   Breakpoint principale: max-width 768px (touch devices)
+   ============================================================ */
+
+/* ────────────────────────────────────────────────────────────
+   VARIABILI MOBILE
+   ──────────────────────────────────────────────────────────── */
+:root {
+  --mob-bottom-bar:    64px;   /* Altezza toolbar bottom fissa */
+  --mob-header:        56px;   /* Altezza header ridotta */
+  --mob-drawer-radius: 20px;   /* Border radius dei drawer */
+  --mob-tap-min:       48px;   /* Dimensione minima target touch */
+  --mob-panel-h:       52vh;   /* Altezza max drawer ricerca/segnalibri */
+  --mob-safe-bottom:   env(safe-area-inset-bottom, 0px); /* iPhone notch */
+}
+
+/* ────────────────────────────────────────────────────────────
+   SAFE AREA — supporto notch iPhone (iOS 11+)
+   ──────────────────────────────────────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .mob-bottom-bar {
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+    body.page-libretti {
+      padding-bottom: 0;
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   HOME PAGE — index.html  (max 768px)
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Header più compatto */
+  header {
+    padding: 8px 12px;
+    min-height: var(--mob-header);
+  }
+
+  .header-logo .header-img { height: 18px; }
+  .header-center .header-img { height: 32px; }
+
+  /* Grid 2×2 per le card, senza margine extra in fondo */
+  .cards-grid {
+    max-width: 100%;
+    max-width:75%;
+    width: 100%;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 0 6px;
+    margin-bottom: 24px;
+  }
+
+  /* Card: icona meno prominente per evitare overflow */
+  .card-icon {
+    width: 76%;
+    margin-bottom: -38px;
+  }
+
+  .card-bg {
+    padding: 46px 10px 18px;
+    min-height: 108px;
+    width: 60%;
+    height: auto;
+    border-radius: 20px;
+  }
+
+  .card-label {
+    font-size: clamp(17px, 4.5vw, 24px);
+    letter-spacing: 2px;
+  }
+
+  /* Main centrato verticalmente */
+  main {
+    padding: 12px 10px 16px;
+    align-items: center;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIBRETTI PAGE — layout reader (max 768px)
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Header della pagina libretti: compatto, centrato */
+  body.page-libretti header {
+    min-height: var(--mob-header);
+    padding: 0 12px;
+    position: relative;
+  }
+
+  /* Bottone back posizionato a sinistra dentro header */
+  .home-button {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: var(--mob-tap-min);
+    height: var(--mob-tap-min);
+    z-index: 20;
+  }
+
+  /* ── HELLFIRE FRAME — home carousel ── */
+  .hellfire-frame {
+    /* Occupa tutto lo schermo meno header */
+    min-height: calc(100dvh - var(--mob-header));
+    max-height: calc(100dvh - var(--mob-header));
+    border-radius: 0;
+    padding: 16px 8px 12px;
+    /* Nascondi overflow del frame (carousel cards che escono) */
+    overflow: hidden;
+    /* Rimuovi border su mobile per più spazio */
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Titolo "Libretti" dentro il frame */
+  .hellfire-frame h1 {
+    font-size: 30px;
+    letter-spacing: 0.14em;
+    padding: 0 4px;
+    flex-shrink: 0;
+    margin-top: 5%;
+  }
+
+  /* ── Carousel shell ── */
+  .carousel-shell {
+    flex: 1;
+    min-height: 0;
+    /* Frecce laterali più strette */
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    gap: 0;
+    align-items: center;
+  }
+
+  /* Frecce carousel: touch target adeguato */
+  .carousel-nav {
+    width: 36px;
+    height: 52px;
+    border-radius: 10px;
+    opacity: 0.7;
+  }
+
+  .carousel-nav:active {
+    opacity: 1;
+    background: rgba(215, 25, 32, 0.28);
+  }
+
+  /* Carousel interno: occupa tutto lo spazio rimanente */
+  .book-carousel {
+    min-height: 0;
+    height: 100%;
+  }
+
+  /* Card del libro: dimensioni ottimizzate per mobile */
+  .book-card {
+    --carousel-step: clamp(80px, 28vw, 128px);
+    --card-scale: calc(1 - (var(--abs-offset) * 0.18));
+    width: clamp(110px, 38vw, 172px);
+    gap: 7px;
+  }
+
+  /* Cover copertina: aspect-ratio rispettato */
+  .book-cover {
+    border-radius: 4px;
+  }
+
+
+  /* Titolo libro */
+  .book-title {
+    font-size: clamp(0.62rem, 3vw, 0.82rem);
+    max-width: 140%;
+  }
+
+  /* CTA "Apri": più grande per tocco facile */
+  .open-book-cta {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    /* Sempre visibile su mobile (no hover) */
+    opacity: 1;
+    transform: none;
+    margin-top: 2px;
+  }
+
+  /* Nascondi CTA per i libri non selezionati */
+  .book-card:not([aria-current="true"]) .open-book-cta {
+    display: none;
+  }
+
+  /* Dots in fondo */
+  .carousel-dots {
+    flex-shrink: 0;
+    padding: 6px 0 3px;
+    gap: 7px;
+    margin-bottom: 10%;
+  }
+
+  .carousel-dot {
+    width: 1px;
+    height: 1px;
+    /* Aumenta area di tocco con padding trasparente */
+    padding: 3px;
+    box-sizing: content-box;
+  }
+
+  .carousel-dot.is-active {
+    width: 18px;
+  }
+
+  /* ── SWIPE HINT — frecce animate su lati ── */
+  .book-carousel::before,
+  .book-carousel::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-right: 2.5px solid rgba(255, 244, 230, 0.28);
+    border-top: 2.5px solid rgba(255, 244, 230, 0.28);
+    pointer-events: none;
+    z-index: 5;
+    animation: swipe-pulse 2.2s ease-in-out infinite;
+    opacity: 0;
+    /* Solo dopo 2s di inattività */
+    animation-delay: 2s;
+  }
+
+  .book-carousel::before {
+    left: 8px;
+    transform: translateY(-50%) rotate(-135deg);
+  }
+
+  .book-carousel::after {
+    right: 8px;
+    transform: translateY(-50%) rotate(45deg);
+  }
+
+  @keyframes swipe-pulse {
+    0%   { opacity: 0; }
+    20%  { opacity: 0.55; }
+    50%  { opacity: 0.2; }
+    80%  { opacity: 0.55; }
+    100% { opacity: 0; }
+  }
+
+  /* ════════════════════════════════════════════════════════
+     READER — layout quando il PDF è aperto
+     ════════════════════════════════════════════════════════ */
+
+  /* Layout reader: tutto in colonna, niente panel laterale */
+  .reader-layout {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--mob-header));
+    /* Lascia spazio per bottom bar fissa */
+    padding-bottom: var(--mob-bottom-bar);
+    overflow: hidden;
+  }
+
+  /* Reader panel prende tutto lo spazio */
+  .reader-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* Rimuovi grid, usa flex */
+    grid-template-rows: none;
+  }
+
+  /* Workspace: il PDF occupa tutto (no tool-rail laterale) */
+  .reader-workspace {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    display: flex;
+    position: relative;
+  }
+
+  /* Tool rail laterale: NASCOSTO su mobile
+     Gli strumenti si trovano nella bottom bar */
+  .tools-wrap {
+    display: none !important;
+  }
+
+  /* PDF column occupa tutto */
+  .pdf-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  /* Book stage: area di rendering, niente padding eccessivo */
+  .book-stage {
+    flex: 1;
+    min-height: 0;
+    padding: 8px 6px;
+    border-top: none;
+    /* Abilita scroll orizzontale se PDF più largo dello schermo */
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Pinch zoom nativo */
+    touch-action: pan-x pan-y pinch-zoom;
+    margin-bottom: 12%;
+  }
+
+  /* Pagina PDF: occupa tutta la larghezza disponibile */
+  .spread {
+    justify-content: center;
+    gap: 0;
+    min-width: unset;
+    padding: 0;
+  }
+
+  .page-shell {
+    border-radius: 3px;
+    /* Ombra leggera su mobile */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+  }
+
+  /* Toolbar navigazione pagine: nascosta
+     (sostituita da bottom bar) */
+  .page-toolbar {
+    display: none;
+  }
+
+  /* Status bar: compatta */
+  .statusbar {
+    display: none; /* nascosta su mobile, spazio usato dalla bottom bar */
+  }
+
+  /* ── BOTTOM BAR MOBILE — toolbar fissa in basso ── */
+  .mob-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom));
+    padding-bottom: var(--mob-safe-bottom);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background: rgba(8, 4, 4, 0.97);
+    border-top: 1px solid rgba(215, 25, 32, 0.25);
+    box-shadow:
+      0 -4px 24px rgba(0, 0, 0, 0.55),
+      0 -1px 0 rgba(215, 25, 32, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Gruppo sinistra: prev + input pagina + next */
+  .mob-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* Gruppo destra: ricerca + segnalibri + aggiungi + zoom */
+  .mob-tools-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* Bottoni della bottom bar */
+  .mob-bottom-bar .icon-button {
+    width: var(--mob-tap-min);
+    height: var(--mob-tap-min);
+    border-radius: 12px;
+    /* Feedback al tocco */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mob-bottom-bar .icon-button:active {
+    background: rgba(215, 25, 32, 0.3);
+    transform: scale(0.92);
+  }
+
+  /* Indicatore pagina nella bottom bar */
+  .mob-page-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px;
+    height: var(--mob-tap-min);
+    color: var(--reader-ink);
+    font-weight: 800;
+    font-size: 0.95rem;
+    min-width: 90px;
+    justify-content: center;
+  }
+
+  .mob-page-indicator input {
+    width: 44px;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid rgba(215, 25, 32, 0.5);
+    color: var(--reader-ink);
+    font: inherit;
+    font-weight: 800;
+    text-align: center;
+    padding: 2px 0;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mob-page-indicator input:focus {
+    border-bottom-color: var(--reader-accent-strong);
+  }
+
+  .mob-page-indicator .mob-total {
+    color: var(--reader-muted);
+    font-size: 0.82rem;
+  }
+
+  /* ── DRAWER PANNELLI (ricerca / segnalibri) ── */
+  /* Il pannello laterale diventa un drawer dal basso */
+  .search-panel {
+    /* Reset layout desktop */
+    display: flex !important;
+    flex-direction: column;
+    min-height: unset;
+
+    /* Drawer dal basso */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    max-height: var(--mob-panel-h);
+    padding: 0;
+    border: none;
+    border-top: 1px solid rgba(215, 25, 32, 0.3);
+    border-radius: var(--mob-drawer-radius) var(--mob-drawer-radius) 0 0;
+    background: rgba(10, 6, 6, 0.98);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(215, 25, 32, 0.18);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    /* Stato chiuso: traslato fuori schermo */
+    transform: translateY(100%);
+    transition: transform var(--t-slow), opacity 200ms ease;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Handle drag visuale in cima al drawer */
+  .search-panel::before {
+    content: "";
+    display: block;
+    flex-shrink: 0;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 244, 230, 0.22);
+    margin: 10px auto 0;
+  }
+
+  /* Drawer aperto */
+  .reader-layout:not(.search-hidden) .search-panel {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Backdrop scuro quando drawer è aperto */
+  .mob-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--t-med);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  .mob-drawer-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Panel view interno al drawer */
+  .panel-view {
+    display: flex !important;
+    flex-direction: column;
+    padding: 8px 14px 14px;
+    gap: 10px;
+    min-height: 0;
+    overflow: hidden;
+    flex: 1;
+  }
+
+  .result-list,
+  .bookmark-list {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Più spazio e font più grandi per il tocco */
+    gap: 10px;
+    /* Padding fondo per evitare che l'ultimo item
+       venga nascosto dalla safe area */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Result/bookmark items: più grandi per il dito */
+  .result-item,
+  .bookmark-main {
+    min-height: 52px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .result-item:active,
+  .bookmark-main:active {
+    background: rgba(215, 25, 32, 0.22);
+    transform: scale(0.98);
+  }
+
+  /* Search box più grande */
+  .search-box {
+    min-height: 50px;
+    border-radius: 12px;
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+
+  .search-box input {
+    font-size: 1rem; /* evita auto-zoom iOS (>= 16px) */
+  }
+
+  /* Search actions */
+  .search-actions {
+    flex-shrink: 0;
+  }
+
+  /* Bookmarks header */
+  .bookmarks-header {
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+
+  /* Bottone elimina segnalibro: più largo */
+  .bookmark-delete {
+    width: var(--mob-tap-min);
+    height: var(--mob-tap-min);
+    min-height: var(--mob-tap-min);
+    border-radius: 12px;
+  }
+
+  /* ── DIALOG SEGNALIBRO ── */
+  /* Il dialog occupa tutto lo schermo (stile sheet) */
+  .bookmark-dialog {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    /* Allineato in fondo come sheet */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: var(--mob-drawer-radius) var(--mob-drawer-radius) 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bookmark-form {
+    gap: 14px;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .text-field {
+    min-height: 50px;
+    padding: 0 14px;
+    font-size: 1rem; /* evita auto-zoom iOS */
+    border-radius: 12px;
+  }
+
+  .text-button {
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+
+  .dialog-actions {
+    gap: 10px;
+  }
+
+  /* ── SELECTION MENU ── */
+  /* Più grande e leggibile su mobile */
+  .selection-menu {
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .selection-menu button {
+    min-height: var(--mob-tap-min);
+    padding: 0 14px;
+    font-size: 0.95rem;
+    gap: 10px;
+  }
+
+  /* ── EMPTY / LOADING STATE ── */
+  .empty-state {
+    min-width: unset;
+    width: min(340px, 88vw);
+    padding: 28px 20px;
+  }
+
+  .loading-page {
+    width: auto;
+    min-width: min(260px, 80vw);
+    height: auto;
+    min-height: 320px;
+  }
+
+  /* ── SEARCH HIDDEN: reader a piena altezza ── */
+  .reader-layout.search-hidden .search-panel {
+    /* già gestito dal transform: translateY(100%) di default */
+    display: flex !important; /* mantieni nel DOM */
+  }
+
+  /* ── SWIPE INDICATOR sul book stage ── */
+  .book-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(to right,
+        rgba(215, 25, 32, 0.06) 0%,
+        transparent 15%,
+        transparent 85%,
+        rgba(215, 25, 32, 0.06) 100%
+      );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 5;
+  }
+
+  .book-stage.is-swiping::after {
+    opacity: 1;
+  }
+
+} /* end @media 768px */
+
+/* ════════════════════════════════════════════════════════════
+   BREAKPOINT MOLTO PICCOLO — max 380px (iPhone SE, ecc.)
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+
+  .cards-grid {
+    gap: 10px;
+    padding: 0 4px;
+  }
+
+  .card-icon { width: 70%; margin-bottom: -30px; }
+
+  .card-bg {
+    padding: 40px 8px 14px;
+    min-height: 76px;
+    border-radius: 16px;
+  }
+
+  .card-label { font-size: 15px; letter-spacing: 1px; }
+
+  .hellfire-frame {
+    padding: 12px 6px 8px;
+  }
+
+  .book-card {
+    --carousel-step: clamp(70px, 25vw, 108px);
+    width: clamp(100px, 36vw, 148px);
+  }
+
+  .mob-page-indicator {
+    min-width: 76px;
+  }
+
+  .mob-page-indicator input {
+    width: 36px;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   LANDSCAPE MOBILE — telefono ruotato orizzontale
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+
+  :root {
+    --mob-bottom-bar: 52px;
+    --mob-header:     48px;
+  }
+
+  /* Header ancora più compatto */
+  body.page-libretti header {
+    min-height: var(--mob-header);
+  }
+
+  /* Ridimensiona il frame del carousel */
+  .hellfire-frame {
+    min-height: calc(100dvh - var(--mob-header));
+    padding: 10px 6px 8px;
+    gap: 6px;
+  }
+
+  .hellfire-frame h1 {
+    font-size: 0.9rem;
+  }
+
+  .book-carousel {
+    /* In landscape il carousel è più largo, usa quel vantaggio */
+    min-height: calc(120dvh - var(--mob-header) - 70px);
+  }
+
+  .book-card {
+    --carousel-step: clamp(100px, 18vw, 180px);
+    width: clamp(200px, 16vw, 160px);
+  }
+
+  /* Drawer: altezza limitata in landscape */
+  .search-panel {
+    max-height: 80dvh;
+  }
+
+  /* Bottom bar più sottile */
+  .mob-bottom-bar {
+    height: var(--mob-bottom-bar);
+  }
+
+  /* Reader: più spazio verticale */
+  .reader-layout {
+    height: calc(100dvh - var(--mob-header));
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   ACCESSIBILITÀ — reduced motion
+   ════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .search-panel,
+  .mob-drawer-backdrop,
+  .book-carousel::before,
+  .book-carousel::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
