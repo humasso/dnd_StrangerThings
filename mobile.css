@@ -8,8 +8,9 @@
    VARIABILI MOBILE
    ──────────────────────────────────────────────────────────── */
 :root {
-  --mob-bottom-bar:    64px;   /* Altezza toolbar bottom fissa */
+  --mob-bottom-bar:    52px;   /* Altezza toolbar bottom fissa */
   --mob-header:        56px;   /* Altezza header ridotta */
+  --mob-top-bar:       48px;   /* Altezza mini toolbar superiore */
   --mob-drawer-radius: 20px;   /* Border radius dei drawer */
   --mob-tap-min:       48px;   /* Dimensione minima target touch */
   --mob-panel-h:       52vh;   /* Altezza max drawer ricerca/segnalibri */
@@ -264,6 +265,7 @@
     display: flex;
     flex-direction: column;
     height: calc(100dvh - var(--mob-header));
+    padding-top: var(--mob-top-bar);
     /* Lascia spazio per bottom bar fissa */
     padding-bottom: var(--mob-bottom-bar);
     overflow: hidden;
@@ -345,10 +347,45 @@
     display: none; /* nascosta su mobile, spazio usato dalla bottom bar */
   }
 
+  /* ── TOP MINI BAR MOBILE — strumenti compatti in alto ── */
+  .mob-top-bar {
+    position: fixed;
+    top: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 110;
+    height: var(--mob-top-bar);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(8, 4, 4, 0.92);
+    border: 1px solid rgba(215, 25, 32, 0.3);
+    box-shadow:
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 244, 230, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .mob-top-bar .icon-button {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mob-top-bar .icon-button:active {
+    background: rgba(215, 25, 32, 0.3);
+    transform: scale(0.92);
+  }
+
   /* ── BOTTOM BAR MOBILE — toolbar fissa in basso ── */
   .mob-bottom-bar {
     position: fixed;
-    bottom: 0;
+    bottom: 2%;
     left: 0;
     right: 0;
     z-index: 100;
@@ -356,17 +393,28 @@
     padding-bottom: var(--mob-safe-bottom);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 4px;
     padding-left: 8px;
     padding-right: 8px;
-    background: rgba(8, 4, 4, 0.97);
-    border-top: 1px solid rgba(215, 25, 32, 0.25);
+    pointer-events: none;
+  }
+
+  .mob-bottom-bar .mob-nav-group {
+    pointer-events: auto;
+    height: var(--mob-bottom-bar);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(8, 4, 4, 0.92);
+    border: 1px solid rgba(215, 25, 32, 0.3);
     box-shadow:
-      0 -4px 24px rgba(0, 0, 0, 0.55),
-      0 -1px 0 rgba(215, 25, 32, 0.12);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 244, 230, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   /* Gruppo sinistra: prev + input pagina + next */
@@ -376,17 +424,10 @@
     gap: 2px;
   }
 
-  /* Gruppo destra: ricerca + segnalibri + aggiungi + zoom */
-  .mob-tools-group {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
   /* Bottoni della bottom bar */
   .mob-bottom-bar .icon-button {
-    width: var(--mob-tap-min);
-    height: var(--mob-tap-min);
+    width: 42px;
+    height: 42px;
     border-radius: 12px;
     /* Feedback al tocco */
     -webkit-tap-highlight-color: transparent;
@@ -403,11 +444,11 @@
     align-items: center;
     gap: 4px;
     padding: 0 6px;
-    height: var(--mob-tap-min);
+    height: 42px;
     color: var(--reader-ink);
     font-weight: 800;
-    font-size: 0.95rem;
-    min-width: 90px;
+    font-size: 0.92rem;
+    min-width: 82px;
     justify-content: center;
   }
 

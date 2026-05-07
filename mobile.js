@@ -26,6 +26,7 @@
   /* ── Riferimenti elementi ── */
   const mob = {
     bottomBar:        document.getElementById("mobBottomBar"),
+    topBar:           document.getElementById("mobTopBar"),
     backdrop:         document.getElementById("mobDrawerBackdrop"),
     prevBtn:          document.getElementById("mobPrevButton"),
     nextBtn:          document.getElementById("mobNextButton"),
@@ -63,11 +64,13 @@
   function syncBottomBarVisibility() {
     if (!isMobile()) {
       mob.bottomBar.hidden = true;
+      if (mob.topBar) mob.topBar.hidden = true;
       return;
     }
     /* Mostra bottom bar solo quando il reader è visibile */
     const readerVisible = !master.readerLayout.hidden;
     mob.bottomBar.hidden = !readerVisible;
+    if (mob.topBar) mob.topBar.hidden = !readerVisible;
   }
 
   /* Osserva quando il readerLayout viene mostrato/nascosto */

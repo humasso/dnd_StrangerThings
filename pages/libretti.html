@@ -262,6 +262,44 @@
     <!-- ── Mobile: backdrop per drawer (ricerca/segnalibri) ── -->
     <div class="mob-drawer-backdrop" id="mobDrawerBackdrop" aria-hidden="true"></div>
 
+    <!-- ── Mobile: mini toolbar superiore (strumenti) ── -->
+    <nav class="mob-top-bar" id="mobTopBar" hidden aria-label="Strumenti lettore">
+        <!-- Ricerca -->
+        <button class="icon-button" type="button"
+            id="mobSearchToggle" title="Cerca" aria-label="Cerca nel PDF">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
+            </svg>
+        </button>
+
+        <!-- Segnalibri -->
+        <button class="icon-button" type="button"
+            id="mobBookmarkToggle" title="Segnalibri" aria-label="Segnalibri">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z"/>
+            </svg>
+        </button>
+
+        <!-- Aggiungi segnalibro pagina -->
+        <button class="icon-button" type="button"
+            id="mobAddBookmark" title="Aggiungi segnalibro" aria-label="Aggiungi segnalibro pagina">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z"/>
+                <path d="M12 7.5v5M9.5 10h5"/>
+            </svg>
+        </button>
+
+        <!-- Zoom in/out (ciclico: 80 → 100 → 130 → 160 → 80) -->
+        <button class="icon-button" type="button"
+            id="mobZoomCycle" title="Zoom" aria-label="Cambia zoom">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m20 20-4.1-4.1"/>
+                <circle cx="11" cy="11" r="6.5"/>
+                <path d="M11 8v6M8 11h6"/>
+            </svg>
+        </button>
+    </nav>
+
     <!-- ── Mobile: bottom toolbar fissa ── -->
     <!-- Visibile solo su mobile (display:none su desktop via CSS) -->
     <nav class="mob-bottom-bar" id="mobBottomBar" hidden aria-label="Controlli lettore">
@@ -285,44 +323,6 @@
                 id="mobNextButton" title="Pagina successiva" aria-label="Pagina successiva">
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="m9 6 6 6-6 6"/>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Destra: strumenti -->
-        <div class="mob-tools-group">
-            <!-- Ricerca -->
-            <button class="icon-button" type="button"
-                id="mobSearchToggle" title="Cerca" aria-label="Cerca nel PDF">
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
-                </svg>
-            </button>
-
-            <!-- Segnalibri -->
-            <button class="icon-button" type="button"
-                id="mobBookmarkToggle" title="Segnalibri" aria-label="Segnalibri">
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z"/>
-                </svg>
-            </button>
-
-            <!-- Aggiungi segnalibro pagina -->
-            <button class="icon-button" type="button"
-                id="mobAddBookmark" title="Aggiungi segnalibro" aria-label="Aggiungi segnalibro pagina">
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z"/>
-                    <path d="M12 7.5v5M9.5 10h5"/>
-                </svg>
-            </button>
-
-            <!-- Zoom in/out (ciclico: 80 → 100 → 130 → 160 → 80) -->
-            <button class="icon-button" type="button"
-                id="mobZoomCycle" title="Zoom" aria-label="Cambia zoom">
-                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m20 20-4.1-4.1"/>
-                    <circle cx="11" cy="11" r="6.5"/>
-                    <path d="M11 8v6M8 11h6"/>
                 </svg>
             </button>
         </div>
