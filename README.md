@@ -2,44 +2,21 @@
 
 Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in stile Stranger Things.
 
-## 🎮 Funzionalità
-
-### Navigazione
-
--**Navigazione fluida tra pagine** con animazioni smooth
-
--**Scorciatoie tastiera**:
-
--`←` - Pagina precedente
-
--`→` - Pagina successiva
+## Funzionalità
 
 ### Tools
 
 - Ricerca full-text nel PDF
 - Zoom e Visualizzazione
 - Segnalibri personalizzati su pagina o testo evidenziato
-
-- **Modalità spread (libro)** per visualizzare due pagine affiancate
-
+- **Modalità spread** per visualizzare due pagine affiancate (SOLO SU PC)
 - Responsivo su tutti i dispositivi
 
 ### Mobile
 
--**Swipe navigation** - Scorri per cambiare pagina
-
-- Layout responsive
+- **Swipe navigation**: Scorri per cambiare pagina
 - Touch-friendly controls
 - Toolbar sempre accessibile
-
-## 📋 TODO
-
-- [X] Aggiungere bookmarks (segnalibri personalizzati)
-- [ ] Risolvere Bug aggiuntga bookmark con visualizzazione a 2 pagine
-- [X] Supporto per annotazioni/highlights
-- [ ] Animazioni (aggiungere barra del progresso + )
-- [X] Tematizzato "Stranger Things: Welcome to the Hellfire Club"
-- [ ] Dark mode
 
 ## Libreria PDF
 
@@ -64,5 +41,9 @@ Esempio:
 "pdf": "assets/contenuti/nome-libretto.pdf"
 
 }
-
 ```
+
+## 📋 TODO
+
+- [ ] Nella ricerca, scrollare i risultati, ma lasciando fermi la barra della ricerca e i pulsanti.
+- [ ] Aggiungere segnalibri, evidenziando da mobile
