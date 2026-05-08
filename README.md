@@ -47,3 +47,4 @@ Esempio:
 
 - [ ] Nella ricerca, scrollare i risultati, ma lasciando fermi la barra della ricerca e i pulsanti.
 - [ ] Aggiungere segnalibri, evidenziando da mobile
+- [ ] Su mobile, quando allargo sul pdf, deve essere possibile leggere "per bene" quello che c'è scritto in basso (allargare il range entro il quale inquadrare il pdf)
