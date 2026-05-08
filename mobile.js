@@ -45,6 +45,7 @@
     pageInput:            document.getElementById("pageInput"),
     totalPages:           document.getElementById("totalPages"),
     searchToggle:         document.getElementById("searchToggleButton"),
+    searchInput:          document.getElementById("searchInput"),
     bookmarkToggle:       document.getElementById("bookmarkToggleButton"),
     addBookmark:          document.getElementById("addPageBookmarkButton"),
     zoomRange:            document.getElementById("zoomRange"),
@@ -225,6 +226,17 @@
      DRAWER — ricerca e segnalibri
      ════════════════════════════════════════════════════════ */
 
+  function syncSearchInputState() {
+    if (!master.searchInput) return;
+    const hasText = master.searchInput.value.trim().length > 0;
+    document.body.classList.toggle("mob-search-has-text", hasText);
+  }
+
+  if (master.searchInput) {
+    master.searchInput.addEventListener("input", syncSearchInputState);
+    master.searchInput.addEventListener("change", syncSearchInputState);
+  }
+
   /* Toggle ricerca (mobile) → delega al bottone master di app.js */
   if (mob.searchToggle && master.searchToggle) {
     mob.searchToggle.addEventListener("click", () => {
@@ -253,14 +265,24 @@
 
   /* Swipe-down per chiudere il drawer */
   let drawerTouchStartY = 0;
+  let drawerTouchStartX = 0;
+  let drawerTouchFromHandle = false;
   if (master.sidePanel) {
     master.sidePanel.addEventListener("touchstart", (e) => {
-      drawerTouchStartY = e.touches[0].clientY;
+      const t = e.touches[0];
+      const rect = master.sidePanel.getBoundingClientRect();
+      drawerTouchStartY = t.clientY;
+      drawerTouchStartX = t.clientX;
+      drawerTouchFromHandle = (t.clientY - rect.top) <= 48;
     }, { passive: true });
 
     master.sidePanel.addEventListener("touchend", (e) => {
-      const dy = e.changedTouches[0].clientY - drawerTouchStartY;
-      if (dy > 60) closeDrawer();
+      const t = e.changedTouches[0];
+      const dy = t.clientY - drawerTouchStartY;
+      const dx = t.clientX - drawerTouchStartX;
+      if (drawerTouchFromHandle && dy > 60 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        closeDrawer();
+      }
     }, { passive: true });
   }
 
@@ -281,6 +303,7 @@
       master.bookmarkToggle?.classList.contains("is-active");
 
     mob.backdrop.classList.toggle("is-visible", Boolean(isOpen));
+    document.body.classList.toggle("mob-drawer-open", Boolean(isOpen));
 
     /* Sincronizza stato attivo dei bottoni mobile */
     if (mob.searchToggle) {
@@ -291,6 +314,8 @@
       mob.bookmarkToggle.classList.toggle("is-active",
         Boolean(master.bookmarkToggle?.classList.contains("is-active")));
     }
+
+    syncSearchInputState();
   }
 
   /* Osserva cambiamenti di classe sui toggle master per sincronizzare */

@@ -87,15 +87,6 @@
                                 </button>
 
                                 <button class="icon-button" type="button"
-                                    id="bookmarkToggleButton"
-                                    title="Mostra segnalibri" aria-label="Mostra segnalibri"
-                                    aria-controls="bookmarksPanel" aria-expanded="false">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z" />
-                                    </svg>
-                                </button>
-
-                                <button class="icon-button" type="button"
                                     id="addPageBookmarkButton"
                                     title="Aggiungi segnalibro pagina" aria-label="Aggiungi segnalibro pagina">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -180,10 +171,10 @@
             </section>
 
             <!-- Right column: Search / Bookmarks panel -->
-            <aside class="search-panel" id="sidePanel" aria-label="Pannello laterale">
+            <aside class="search-panel-hidden" id="sidePanel" aria-label="Pannello laterale" hidden>
 
                 <!-- Search panel -->
-                <section class="panel-view" id="searchPanel" aria-label="Ricerca nel PDF">
+                <section class="panel-view" id="searchPanel" aria-label="Ricerca nel PDF" hidden>
                     <div class="search-box">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
@@ -269,14 +260,6 @@
             id="mobSearchToggle" title="Cerca" aria-label="Cerca nel PDF">
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
-            </svg>
-        </button>
-
-        <!-- Segnalibri -->
-        <button class="icon-button" type="button"
-            id="mobBookmarkToggle" title="Segnalibri" aria-label="Segnalibri">
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75v15.5l-5-3.1-5 3.1V4.75Z"/>
             </svg>
         </button>
 

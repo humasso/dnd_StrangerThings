@@ -590,11 +590,13 @@ body.page-libretti main::before {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px;
-  border: 1px solid rgba(255, 244, 230, 0.1);
-  border-radius: 8px;
-  background: rgba(10, 8, 8, 0.76);
-  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.32);
+  padding: 6px 10px;
+  border: 1px solid rgba(215, 25, 32, 0.3);
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.92);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 244, 230, 0.04);
 }
 
 .page-group { justify-content: center; }
@@ -613,8 +615,8 @@ body.page-libretti main::before {
   height: 42px;
   min-height: 42px;
   border: 0;
-  border-radius: 12px;
-  background: rgba(255, 244, 230, 0.03);
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.92);
   color: var(--reader-ink);
   cursor: pointer;
   transition:
@@ -962,13 +964,21 @@ input:disabled {
 
 /* ── Search / Bookmark side panel ── */
 .search-panel {
-  display: grid;
+  display: flex !important;
+  flex-direction: column;
+  min-height: unset;
   min-width: 0;
   min-height: 0;
   padding: 16px;
-  border-left: 1px solid rgba(255, 244, 230, 0.1);
-  background: rgba(10, 8, 8, 0.74);
-  backdrop-filter: blur(8px);
+  gap: 12px;
+  border-left: 1px solid rgba(215, 25, 32, 0.3);
+  background: rgba(10, 6, 6, 0.96);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.search-panel-hidden {
+  display: none !important;
 }
 
 .reader-layout.search-hidden .search-panel {
@@ -982,6 +992,19 @@ input:disabled {
   min-height: 0;
 }
 
+#searchPanel.panel-view {
+  align-content: start;
+  flex: 0 0 auto;
+}
+
+.bookmarks-panel {
+  flex: 1 1 auto;
+}
+
+body:not(.search-has-text) #searchPanel.panel-view {
+  grid-template-rows: auto;
+}
+
 .bookmarks-panel {
   grid-template-rows: auto minmax(0, 1fr);
 }
@@ -992,9 +1015,9 @@ input:disabled {
   gap: 10px;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 244, 230, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 244, 230, 0.05);
+  border: 1px solid rgba(215, 25, 32, 0.3);
+  border-radius: 12px;
+  background: rgba(8, 4, 4, 0.92);
   color: var(--reader-muted);
   transition: border-color var(--t-fast);
 }
@@ -1032,6 +1055,20 @@ input:disabled {
   gap: 8px;
 }
 
+.search-actions .icon-button {
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.92);
+  border: 1px solid rgba(215, 25, 32, 0.3);
+}
+
+body:not(.search-has-text) .search-actions {
+  display: none;
+}
+
+body.search-has-text .bookmarks-panel {
+  display: none;
+}
+
 .search-count {
   min-width: 0;
   color: var(--reader-muted);
@@ -1050,6 +1087,14 @@ input:disabled {
   scrollbar-color: rgba(215, 25, 32, 0.3) transparent;
 }
 
+body:not(.search-has-text) .result-list {
+  display: none;
+}
+
+body:not(.search-has-text) .result-list {
+  display: none;
+}
+
 .result-list::-webkit-scrollbar {
   width: 4px;
 }
@@ -1064,9 +1109,9 @@ input:disabled {
   gap: 4px;
   width: 100%;
   padding: 10px;
-  border: 1px solid rgba(255, 244, 230, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 244, 230, 0.05);
+  border: 1px solid rgba(215, 25, 32, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 4, 4, 0.9);
   color: var(--reader-ink);
   text-align: left;
   cursor: pointer;
@@ -1125,7 +1170,7 @@ input:disabled {
   min-height: 2rem;
   padding: 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--reader-accent);
   color: #fff5e8;
   font-weight: 850;
@@ -1164,9 +1209,9 @@ input:disabled {
   gap: 4px;
   min-width: 0;
   padding: 10px;
-  border: 1px solid rgba(255, 244, 230, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 244, 230, 0.05);
+  border: 1px solid rgba(215, 25, 32, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 4, 4, 0.9);
   color: var(--reader-ink);
   text-align: left;
   cursor: pointer;
@@ -1211,9 +1256,9 @@ input:disabled {
   width: 36px;
   height: 36px;
   min-height: 36px;
-  border: 1px solid rgba(255, 244, 230, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 244, 230, 0.05);
+  border: 1px solid rgba(215, 25, 32, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.9);
   color: var(--reader-muted);
 }
 

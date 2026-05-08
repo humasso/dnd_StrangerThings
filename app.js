@@ -159,7 +159,9 @@ function bindEvents() {
   });
 
   elements.searchToggleButton.addEventListener("click", () => togglePanel("search"));
-  elements.bookmarkToggleButton.addEventListener("click", () => togglePanel("bookmarks"));
+  if (elements.bookmarkToggleButton) {
+    elements.bookmarkToggleButton.addEventListener("click", () => togglePanel("bookmarks"));
+  }
 
   elements.addPageBookmarkButton.addEventListener("click", () => {
     openBookmarkDialog(createPageBookmarkDraft());
@@ -185,10 +187,20 @@ function bindEvents() {
     if (draft) openBookmarkDialog(draft);
   });
 
+  function updateSearchInputState() {
+    const hasText = elements.searchInput.value.trim().length > 0;
+    document.body.classList.toggle("search-has-text", hasText);
+    if (state.activePanel === "search") {
+      elements.bookmarksPanel.hidden = hasText;
+    }
+  }
+
   elements.searchInput.addEventListener("input", () => {
+    updateSearchInputState();
     clearTimeout(searchTimer);
     searchTimer = window.setTimeout(runSearch, 240);
   });
+  elements.searchInput.addEventListener("change", updateSearchInputState);
 
   elements.prevResultButton.addEventListener("click", () => moveSearchResult(-1));
   elements.nextResultButton.addEventListener("click", () => moveSearchResult(1));
@@ -215,6 +227,8 @@ function bindEvents() {
 
 /* ── Zoom gestures (wheel + pinch + trackpad) ── */
 function bindZoomGestures() {
+  const SWIPE_ZOOM_MAX = 120;
+
   elements.bookStage.addEventListener("wheel", (e) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
@@ -260,6 +274,11 @@ function bindZoomGestures() {
     if (swipeTracking && media.matches) {
       const dx = touchLastX - touchStartX;
       const dy = touchLastY - touchStartY;
+      if (state.zoomPercent > SWIPE_ZOOM_MAX) {
+        lastTouchDistance = 0;
+        swipeTracking = false;
+        return;
+      }
       if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.2) {
         turnPage(dx > 0 ? -1 : 1);
       }
@@ -700,14 +719,24 @@ function togglePanel(panelName) {
 }
 
 function syncSearchPanelVisibility() {
-  const visible    = Boolean(state.activePanel);
-  const isSearch   = state.activePanel === "search";
+  const isSearch = state.activePanel === "search";
   const isBookmark = state.activePanel === "bookmarks";
+  const visible = isSearch || isBookmark;
+  const hasSearchText = elements.searchInput
+    ? elements.searchInput.value.trim().length > 0
+    : false;
+
+  document.body.classList.toggle("search-has-text", hasSearchText);
 
   elements.readerLayout.classList.toggle("search-hidden", !visible);
-  elements.sidePanel.hidden      = !visible;
-  elements.searchPanel.hidden    = !isSearch;
-  elements.bookmarksPanel.hidden = !isBookmark;
+  if (elements.sidePanel) {
+    elements.sidePanel.hidden = !visible;
+    elements.sidePanel.setAttribute("aria-hidden", String(!visible));
+    elements.sidePanel.classList.toggle("search-panel", visible);
+    elements.sidePanel.classList.toggle("search-panel-hidden", !visible);
+  }
+  elements.searchPanel.hidden = !isSearch;
+  elements.bookmarksPanel.hidden = !(isBookmark || (isSearch && !hasSearchText));
 
   elements.searchToggleButton.classList.toggle("is-active", isSearch);
   elements.searchToggleButton.setAttribute("aria-expanded", String(isSearch));
@@ -715,11 +744,13 @@ function syncSearchPanelVisibility() {
     elements.searchToggleButton.setAttribute("aria-label",
       isSearch ? "Nascondi ricerca" : "Mostra ricerca") || (isSearch ? "Nascondi ricerca" : "Mostra ricerca");
 
-  elements.bookmarkToggleButton.classList.toggle("is-active", isBookmark);
-  elements.bookmarkToggleButton.setAttribute("aria-expanded", String(isBookmark));
-  const bmLabel = isBookmark ? "Nascondi segnalibri" : "Mostra segnalibri";
-  elements.bookmarkToggleButton.title = bmLabel;
-  elements.bookmarkToggleButton.setAttribute("aria-label", bmLabel);
+  if (elements.bookmarkToggleButton) {
+    elements.bookmarkToggleButton.classList.toggle("is-active", isBookmark);
+    elements.bookmarkToggleButton.setAttribute("aria-expanded", String(isBookmark));
+    const bmLabel = isBookmark ? "Nascondi segnalibri" : "Mostra segnalibri";
+    elements.bookmarkToggleButton.title = bmLabel;
+    elements.bookmarkToggleButton.setAttribute("aria-label", bmLabel);
+  }
 
   const searchLabel = isSearch ? "Nascondi ricerca" : "Mostra ricerca";
   elements.searchToggleButton.title = searchLabel;
@@ -1476,7 +1507,7 @@ function syncControls() {
   elements.zoomRange.disabled             = !has;
   elements.spreadButton.disabled          = !has;
   elements.addPageBookmarkButton.disabled = !has;
-  elements.bookmarkToggleButton.disabled  = !has;
+  // elements.bookmarkToggleButton.disabled  = !has;
   elements.searchInput.disabled           = !has;
   elements.prevResultButton.disabled      = !state.searchMatches.length;
   elements.nextResultButton.disabled      = !state.searchMatches.length;
