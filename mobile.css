@@ -483,37 +483,47 @@
 
   /* ── DRAWER PANNELLI (ricerca / segnalibri) ── */
   /* Il pannello laterale diventa un drawer dal basso */
-  .search-panel {
-    /* Reset layout desktop */
+  /* ── Pannello mobile: drawer dal basso unificato ──
+     Struttura:
+       .side-panel          (drawer, height fissa, flex column, overflow:hidden)
+         ::before           handle drag
+         .panel-header      FISSO — search-box + search-actions
+         .panel-body        flex:1, overflow:hidden
+           .result-list     scroll — visibile durante ricerca
+           .bookmarks-section  scroll — visibile a riposo
+             .bookmarks-header  FISSO
+             .bookmark-list     scroll
+  ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── */
+
+  .side-panel {
+    /* Drawer dal basso con altezza FISSA */
     display: flex !important;
     flex-direction: column;
-    min-height: unset;
-
-    /* Drawer dal basso */
+    overflow: hidden;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 240;
+    height: var(--mob-panel-h);
     max-height: var(--mob-panel-h);
+    z-index: 240;
     padding: 0;
     border: none;
     border-top: 1px solid rgba(215, 25, 32, 0.3);
     border-radius: var(--mob-drawer-radius) var(--mob-drawer-radius) 0 0;
     background: rgba(10, 6, 6, 0.98);
-    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.7), 0 -1px 0 rgba(215, 25, 32, 0.18);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.7);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-
-    /* Stato chiuso: traslato fuori schermo */
+    /* Chiuso */
     transform: translateY(100%);
     transition: transform var(--t-slow), opacity 200ms ease;
     opacity: 0;
     pointer-events: none;
   }
 
-  /* Handle drag visuale in cima al drawer */
-  .search-panel::before {
+  /* Handle drag */
+  .side-panel::before {
     content: "";
     display: block;
     flex-shrink: 0;
@@ -525,63 +535,109 @@
   }
 
   /* Drawer aperto */
-  .reader-layout:not(.search-hidden) .search-panel {
+  .reader-layout:not(.search-hidden) .side-panel {
     transform: translateY(0);
     opacity: 1;
     pointer-events: auto;
   }
 
-  /* Backdrop scuro quando drawer è aperto */
-  .mob-drawer-backdrop {
-    display: none;
-  }
+  /* Backdrop: disabilitato (non blocca il PDF) */
+  .mob-drawer-backdrop { display: none; }
+  .mob-drawer-backdrop.is-visible { display: none; }
 
-  .mob-drawer-backdrop.is-visible {
-    display: none;
-  }
-
-  /* Panel view interno al drawer */
-  .panel-view {
-    display: flex !important;
+  /* panel-header: FISSO */
+  .panel-header {
+    flex-shrink: 0;
+    display: flex;
     flex-direction: column;
-    padding: 8px 14px 14px;
-    gap: 10px;
-    min-height: 0;
-    overflow: hidden;
+    gap: 8px;
+    padding: 8px 14px 10px;
+    border-bottom: 1px solid rgba(215, 25, 32, 0.15);
+  }
+
+  .search-box {
+    min-height: 50px;
+    border-radius: 12px;
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+
+  .search-box input { font-size: 1rem; }
+
+  .search-actions {
+    display: none;
+    flex-shrink: 0;
+  }
+
+  .mob-search-has-text .search-actions { display: flex; }
+  .mob-search-has-text .bookmarks-section { display: none !important; }
+
+  /* panel-body: prende tutto lo spazio rimasto */
+  .panel-body {
     flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
-  .result-list,
-  .bookmark-list {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    /* Più spazio e font più grandi per il tocco */
+  /* result-list: scroll durante ricerca */
+  .result-list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    /* Padding fondo per evitare che l'ultimo item
-       venga nascosto dalla safe area */
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Result/bookmark items: più grandi per il dito */
-  .result-item,
-  .bookmark-main {
-    min-height: 72px;
+  /* bookmarks-section: visibile a riposo */
+  .bookmarks-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* bookmarks-header: fisso */
+  .bookmarks-header {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid rgba(91, 215, 25, 0);
+  }
+
+  /* bookmark-list: scroll */
+  .bookmark-list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Items: non si schiacciano */
+  .result-item, .bookmark-item { flex-shrink: 0; }
+
+  .result-item {
+    min-height: 60px;
     max-height: none;
     padding: 12px;
     border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .result-item {
-    text-align: left;
     line-height: 1.3;
   }
 
-  .result-item .result-page {
-    font-size: 0.9rem;
-    font-weight: 900;
-  }
-
+  .result-item .result-page { font-size: 0.9rem; font-weight: 900; }
   .result-item .result-snippet {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -591,44 +647,15 @@
   }
 
   .result-item:active,
-  .bookmark-main:active {
-    background: rgba(215, 25, 32, 0.22);
-    transform: scale(0.98);
-  }
+  .bookmark-main:active { background: rgba(215, 25, 32, 0.22); transform: scale(0.98); }
 
-  /* Search box più grande */
-  .search-box {
-    min-height: 50px;
+  .bookmark-main {
+    min-height: 56px;
+    padding: 12px;
     border-radius: 12px;
-    padding: 0 14px;
     flex-shrink: 0;
   }
 
-  .search-box input {
-    font-size: 1rem; /* evita auto-zoom iOS (>= 16px) */
-  }
-
-  /* Search actions */
-  .search-actions {
-    display: none;
-    flex-shrink: 0;
-  }
-
-  .mob-search-has-text .search-actions {
-    display: flex;
-  }
-
-  .mob-search-has-text .bookmarks-panel {
-    display: none !important;
-  }
-
-  /* Bookmarks header */
-  .bookmarks-header {
-    flex-shrink: 0;
-    min-height: 44px;
-  }
-
-  /* Bottone elimina segnalibro: più largo */
   .bookmark-delete {
     width: var(--mob-tap-min);
     height: var(--mob-tap-min);

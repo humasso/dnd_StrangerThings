@@ -171,10 +171,10 @@
             </section>
 
             <!-- Right column: Search / Bookmarks panel -->
-            <aside class="search-panel-hidden" id="sidePanel" aria-label="Pannello laterale" hidden>
+            <aside class="side-panel" id="sidePanel" aria-label="Pannello laterale" hidden>
 
-                <!-- Search panel -->
-                <section class="panel-view" id="searchPanel" aria-label="Ricerca nel PDF" hidden>
+                <!-- TESTA FISSA: search box + azioni sempre visibili -->
+                <div class="panel-header">
                     <div class="search-box">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="m20 20-4.1-4.1m1.1-5.4a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
@@ -182,8 +182,7 @@
                         <input id="searchInput" type="search"
                             placeholder="Cerca nel PDF…" autocomplete="off" />
                     </div>
-
-                    <div class="search-actions">
+                    <div class="search-actions" id="searchActions">
                         <button class="icon-button" type="button"
                             id="prevResultButton"
                             title="Risultato precedente" aria-label="Risultato precedente">
@@ -196,19 +195,24 @@
                         </button>
                         <span id="searchCount" class="search-count">0 risultati</span>
                     </div>
+                </div>
 
+                <!-- CORPO SCROLLABILE: alterna risultati ricerca e segnalibri -->
+                <div class="panel-body">
+
+                    <!-- Risultati ricerca (mostrati quando c'e' testo nella barra) -->
                     <div class="result-list" id="resultList"></div>
-                </section>
 
-                <!-- Bookmarks panel -->
-                <section class="panel-view bookmarks-panel" id="bookmarksPanel"
-                    aria-label="Segnalibri" hidden>
-                    <div class="bookmarks-header">
-                        <h2>Segnalibri</h2>
-                        <span id="bookmarkCount" class="bookmark-count">0</span>
+                    <!-- Segnalibri (mostrati quando non si sta cercando) -->
+                    <div class="bookmarks-section" id="bookmarksPanel">
+                        <div class="bookmarks-header">
+                            <h2>Segnalibri</h2>
+                            <span id="bookmarkCount" class="bookmark-count">0</span>
+                        </div>
+                        <div class="bookmark-list" id="bookmarkList"></div>
                     </div>
-                    <div class="bookmark-list" id="bookmarkList"></div>
-                </section>
+
+                </div>
 
             </aside>
         </main>

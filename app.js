@@ -46,7 +46,6 @@ const elements = {
   resultList:             document.getElementById("resultList"),
   searchCount:            document.getElementById("searchCount"),
   searchInput:            document.getElementById("searchInput"),
-  searchPanel:            document.getElementById("searchPanel"),
   searchToggleButton:     document.getElementById("searchToggleButton"),
   selectionBookmarkButton:document.getElementById("selectionBookmarkButton"),
   selectionMenu:          document.getElementById("selectionMenu"),
@@ -190,9 +189,8 @@ function bindEvents() {
   function updateSearchInputState() {
     const hasText = elements.searchInput.value.trim().length > 0;
     document.body.classList.toggle("search-has-text", hasText);
-    if (state.activePanel === "search") {
-      elements.bookmarksPanel.hidden = hasText;
-    }
+    // La visibilità di result-list / bookmarks-section è gestita
+    // interamente dal CSS tramite body.search-has-text
   }
 
   elements.searchInput.addEventListener("input", () => {
@@ -719,31 +717,34 @@ function togglePanel(panelName) {
 }
 
 function syncSearchPanelVisibility() {
-  const isSearch = state.activePanel === "search";
+  const isSearch   = state.activePanel === "search";
   const isBookmark = state.activePanel === "bookmarks";
-  const visible = isSearch || isBookmark;
+  const visible    = isSearch || isBookmark;
+
   const hasSearchText = elements.searchInput
     ? elements.searchInput.value.trim().length > 0
     : false;
 
+  // Classe sul body: controlla via CSS result-list vs bookmarks-section
   document.body.classList.toggle("search-has-text", hasSearchText);
 
+  // Reader layout: toglie la colonna del pannello quando chiuso
   elements.readerLayout.classList.toggle("search-hidden", !visible);
+
+  // Side panel unificato: visibile se qualunque pannello è attivo
   if (elements.sidePanel) {
     elements.sidePanel.hidden = !visible;
     elements.sidePanel.setAttribute("aria-hidden", String(!visible));
-    elements.sidePanel.classList.toggle("search-panel", visible);
-    elements.sidePanel.classList.toggle("search-panel-hidden", !visible);
   }
-  elements.searchPanel.hidden = !isSearch;
-  elements.bookmarksPanel.hidden = !(isBookmark || (isSearch && !hasSearchText));
 
+  // Bottone ricerca
   elements.searchToggleButton.classList.toggle("is-active", isSearch);
   elements.searchToggleButton.setAttribute("aria-expanded", String(isSearch));
-  elements.searchToggleButton.title =
-    elements.searchToggleButton.setAttribute("aria-label",
-      isSearch ? "Nascondi ricerca" : "Mostra ricerca") || (isSearch ? "Nascondi ricerca" : "Mostra ricerca");
+  const searchLabel = isSearch ? "Nascondi ricerca" : "Mostra ricerca";
+  elements.searchToggleButton.title = searchLabel;
+  elements.searchToggleButton.setAttribute("aria-label", searchLabel);
 
+  // Bottone segnalibri
   if (elements.bookmarkToggleButton) {
     elements.bookmarkToggleButton.classList.toggle("is-active", isBookmark);
     elements.bookmarkToggleButton.setAttribute("aria-expanded", String(isBookmark));
@@ -752,9 +753,11 @@ function syncSearchPanelVisibility() {
     elements.bookmarkToggleButton.setAttribute("aria-label", bmLabel);
   }
 
-  const searchLabel = isSearch ? "Nascondi ricerca" : "Mostra ricerca";
-  elements.searchToggleButton.title = searchLabel;
-  elements.searchToggleButton.setAttribute("aria-label", searchLabel);
+  // Quando si apre il pannello segnalibri, rimuovi il testo di ricerca
+  // così il CSS mostra bookmarks-section invece di result-list
+  if (isBookmark) {
+    document.body.classList.remove("search-has-text");
+  }
 }
 
 function toggleToolsVisibility() {
