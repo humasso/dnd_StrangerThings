@@ -329,88 +329,104 @@
   }
 
   /* ════════════════════════════════════════════════════════
-     SELEZIONE TESTO SU MOBILE — long-press e touchend
+     SELEZIONE TESTO SU MOBILE (Android + iOS)
      ════════════════════════════════════════════════════════
 
-     Su mobile il browser gestisce già il long-press per selezionare
-     testo (mostrandolo evidenziato). Quello che dobbiamo fare è:
-     1. Intercettare touchend sul textLayer per mostrare il selection-menu
-        con coordinate corrette (le touch coordinates, non mouse)
-     2. Distinguere swipe (movimento > soglia) da tap/long-press (fermo)
-     3. Sopprimere lo swipe-pagina quando l'utente sta selezionando
+     PROBLEMA ANDROID:
+     - touchend scatta PRIMA che la selezione sia completata
+     - L'utente trascina le maniglie dopo: la selezione cambia dopo
+     - Soluzione: ascoltare selectionchange (si attiva ad ogni modifica
+       della selezione, incluso drag maniglie) con debounce 350ms
+
+     POSIZIONAMENTO:
+     - Usiamo getBoundingClientRect() del Range (preciso anche dopo
+       il drag maniglie), non le coordinate del tocco
+
+     BOTTONE:
+     - pointerdown + preventDefault blocca la perdita della selezione
+       su Android (mousedown deseleziona)
   ════════════════════════════════════════════════════════ */
 
-  const selectionMenu   = document.getElementById("selectionMenu");
-  const selectionBtn    = document.getElementById("selectionBookmarkButton");
-  const bookStage       = master.bookStage;
+  const selectionMenu = document.getElementById("selectionMenu");
+  const selectionBtn  = document.getElementById("selectionBookmarkButton");
+  const bookStage     = master.bookStage;
 
-  if (!bookStage || !selectionMenu) return; // già restituito sopra se elements mancano
+  if (!bookStage || !selectionMenu) return;
 
-  /* Soglia in px oltre la quale un touch è considerato swipe, non tap/long-press */
-  const SWIPE_THRESHOLD = 12;
-
-  let touchStartX   = 0;
-  let touchStartY   = 0;
-  let touchMoved    = false;   /* true se l'utente ha mosso il dito oltre la soglia */
-  let touchLastX    = 0;
-  let touchLastY    = 0;
+  /* ── Stato swipe ── */
+  const SWIPE_THRESHOLD = 14;
+  let touchStartX = 0, touchStartY = 0;
+  let touchMoved  = false;
+  let isSelecting = false;
 
   bookStage.addEventListener("touchstart", (e) => {
-    if (e.touches.length !== 1) return; // multi-touch: pinch zoom, ignoriamo
+    if (e.touches.length !== 1) return;
     const t = e.touches[0];
     touchStartX = t.clientX;
     touchStartY = t.clientY;
-    touchLastX  = t.clientX;
-    touchLastY  = t.clientY;
     touchMoved  = false;
   }, { passive: true });
 
   bookStage.addEventListener("touchmove", (e) => {
     if (e.touches.length !== 1) return;
     const t = e.touches[0];
-    touchLastX = t.clientX;
-    touchLastY = t.clientY;
     const dx = Math.abs(t.clientX - touchStartX);
     const dy = Math.abs(t.clientY - touchStartY);
     if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) {
       touchMoved = true;
-      /* Swipe in corso: aggiungi is-swiping per bloccare la selezione
-         e permettere lo scroll/swipe-pagina */
       bookStage.classList.add("is-swiping");
     }
   }, { passive: true });
 
-  bookStage.addEventListener("touchend", (e) => {
-    /* Dopo il rilascio del dito, rimuovi is-swiping con un piccolo ritardo
-       (lascia che l'animazione swipe completi) */
+  bookStage.addEventListener("touchend", () => {
     setTimeout(() => bookStage.classList.remove("is-swiping"), 300);
-
-    /* Se l'utente ha spostato il dito (swipe), non mostrare il menu */
-    if (touchMoved) return;
-
-    /* Piccolo delay: il browser deve finire di aggiornare la selezione */
-    setTimeout(() => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
-
-      const text = sel.toString().replace(/\s+/g, " ").trim();
-      if (!text) return;
-
-      /* Verifica che la selezione sia dentro il book-stage */
-      const anchor = sel.anchorNode?.parentElement?.closest(".page-shell");
-      if (!anchor) return;
-
-      /* Posiziona il menu sopra il punto di rilascio del dito */
-      showSelectionMenuAtTouch(touchLastX, touchLastY);
-    }, 80);
   }, { passive: true });
 
-  /**
-   * Posiziona e mostra il selection-menu vicino al punto di tocco,
-   * assicurandosi che non esca dallo schermo.
-   */
-  function showSelectionMenuAtTouch(touchX, touchY) {
-    /* Prima mostra il menu fuori schermo per misurarne le dimensioni */
+  /* ── selectionchange: cuore della soluzione Android ──
+     Si attiva quando:
+     - Long-press iniziale crea la selezione
+     - L'utente sposta le maniglie (drag handle)
+     - La selezione viene rimossa (collapse)
+     Debounce 350ms: aspetta che l'utente smetta di trascinare */
+  let selectionDebounce = 0;
+
+  document.addEventListener("selectionchange", () => {
+    clearTimeout(selectionDebounce);
+    selectionDebounce = setTimeout(onSelectionSettled, 350);
+  });
+
+  function onSelectionSettled() {
+    if (touchMoved) return;
+
+    const sel = window.getSelection();
+
+    if (!sel || sel.isCollapsed || !sel.rangeCount) {
+      if (isSelecting) hideSelectionMenu();
+      return;
+    }
+
+    const text = sel.toString().replace(/\s+/g, " ").trim();
+    if (!text) { hideSelectionMenu(); return; }
+
+    /* Solo se la selezione e' dentro il book-stage */
+    const anchorShell = sel.anchorNode?.parentElement?.closest(".page-shell");
+    const focusShell  = sel.focusNode?.parentElement?.closest(".page-shell");
+    if (!anchorShell && !focusShell) { hideSelectionMenu(); return; }
+
+    isSelecting = true;
+    positionMenuAboveSelection(sel);
+  }
+
+  function positionMenuAboveSelection(sel) {
+    const range = sel.getRangeAt(0);
+    const rects = Array.from(range.getClientRects());
+    if (!rects.length) return;
+
+    const minX = Math.min(...rects.map(r => r.left));
+    const maxX = Math.max(...rects.map(r => r.right));
+    const minY = Math.min(...rects.map(r => r.top));
+    const maxY = Math.max(...rects.map(r => r.bottom));
+
     selectionMenu.hidden = false;
     selectionMenu.style.left = "-9999px";
     selectionMenu.style.top  = "-9999px";
@@ -421,45 +437,46 @@
       const margin = 10;
       const vw     = window.innerWidth;
       const vh     = window.innerHeight;
+      const bottomBarH = 64;
 
-      /* Prova a posizionare sopra il tocco */
-      let top  = touchY - menuH - 16;
-      let left = touchX - menuW / 2;
+      let left = (minX + maxX) / 2 - menuW / 2;
+      let top  = minY - menuH - 14;
 
-      /* Se esce in alto, mettilo sotto */
-      if (top < margin) top = touchY + 24;
-      /* Clamp orizzontale */
+      if (top < margin) top = maxY + 14;
+
       left = Math.max(margin, Math.min(left, vw - menuW - margin));
-      /* Non scendere troppo (sopra la bottom bar mobile) */
-      const bottomBarH = isMobile() ? 60 : 0;
-      top = Math.min(top, vh - menuH - bottomBarH - margin);
+      top  = Math.max(margin, Math.min(top, vh - menuH - bottomBarH - margin));
 
-      selectionMenu.style.left = `${left}px`;
-      selectionMenu.style.top  = `${top}px`;
+      selectionMenu.style.left = `${Math.round(left)}px`;
+      selectionMenu.style.top  = `${Math.round(top)}px`;
     });
   }
 
-  /* Il pulsante "Segnalibro" nel menu deve funzionare su touch:
-     preveniamo mousedown (che deseleziona) e usiamo touchend */
-  if (selectionBtn) {
-    selectionBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); /* Blocca il mousedown che causerebbe deselect */
-    }, { passive: false });
-
-    /* touchend sul bottone: stessa logica del click, ma preserva la selezione */
-    selectionBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      /* Lascia che app.js gestisca la selezione corrente */
-      selectionBtn.click();
-    }, { passive: false });
+  function hideSelectionMenu() {
+    isSelecting = false;
+    selectionMenu.hidden = true;
   }
 
-  /* Nasconde il menu se si tocca fuori */
-  document.addEventListener("touchstart", (e) => {
-    if (!selectionMenu.hidden && !selectionMenu.contains(e.target)) {
-      selectionMenu.hidden = true;
-      window.getSelection()?.removeAllRanges();
-    }
+  /* ── Bottone "Segnalibro": pointerdown preventDefault
+     blocca la perdita della selezione su Android ── */
+  if (selectionBtn) {
+    selectionBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+    });
+    selectionBtn.addEventListener("pointerup", (e) => {
+      e.preventDefault();
+      selectionBtn.click();
+      hideSelectionMenu();
+    });
+  }
+
+  /* ── Nascondi menu se si tocca fuori ── */
+  document.addEventListener("pointerdown", (e) => {
+    if (selectionMenu.hidden || selectionMenu.contains(e.target)) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) hideSelectionMenu();
+    }, 100);
   }, { passive: true });
 
   /* ════════════════════════════════════════════════════════
