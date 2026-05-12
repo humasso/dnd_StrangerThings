@@ -329,18 +329,148 @@
   }
 
   /* ════════════════════════════════════════════════════════
-     SWIPE FEEDBACK sul book-stage
+     SELEZIONE TESTO SU MOBILE — long-press e touchend
+     ════════════════════════════════════════════════════════
+
+     Su mobile il browser gestisce già il long-press per selezionare
+     testo (mostrandolo evidenziato). Quello che dobbiamo fare è:
+     1. Intercettare touchend sul textLayer per mostrare il selection-menu
+        con coordinate corrette (le touch coordinates, non mouse)
+     2. Distinguere swipe (movimento > soglia) da tap/long-press (fermo)
+     3. Sopprimere lo swipe-pagina quando l'utente sta selezionando
+  ════════════════════════════════════════════════════════ */
+
+  const selectionMenu   = document.getElementById("selectionMenu");
+  const selectionBtn    = document.getElementById("selectionBookmarkButton");
+  const bookStage       = master.bookStage;
+
+  if (!bookStage || !selectionMenu) return; // già restituito sopra se elements mancano
+
+  /* Soglia in px oltre la quale un touch è considerato swipe, non tap/long-press */
+  const SWIPE_THRESHOLD = 12;
+
+  let touchStartX   = 0;
+  let touchStartY   = 0;
+  let touchMoved    = false;   /* true se l'utente ha mosso il dito oltre la soglia */
+  let touchLastX    = 0;
+  let touchLastY    = 0;
+
+  bookStage.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return; // multi-touch: pinch zoom, ignoriamo
+    const t = e.touches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+    touchLastX  = t.clientX;
+    touchLastY  = t.clientY;
+    touchMoved  = false;
+  }, { passive: true });
+
+  bookStage.addEventListener("touchmove", (e) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchLastX = t.clientX;
+    touchLastY = t.clientY;
+    const dx = Math.abs(t.clientX - touchStartX);
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) {
+      touchMoved = true;
+      /* Swipe in corso: aggiungi is-swiping per bloccare la selezione
+         e permettere lo scroll/swipe-pagina */
+      bookStage.classList.add("is-swiping");
+    }
+  }, { passive: true });
+
+  bookStage.addEventListener("touchend", (e) => {
+    /* Dopo il rilascio del dito, rimuovi is-swiping con un piccolo ritardo
+       (lascia che l'animazione swipe completi) */
+    setTimeout(() => bookStage.classList.remove("is-swiping"), 300);
+
+    /* Se l'utente ha spostato il dito (swipe), non mostrare il menu */
+    if (touchMoved) return;
+
+    /* Piccolo delay: il browser deve finire di aggiornare la selezione */
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+
+      const text = sel.toString().replace(/\s+/g, " ").trim();
+      if (!text) return;
+
+      /* Verifica che la selezione sia dentro il book-stage */
+      const anchor = sel.anchorNode?.parentElement?.closest(".page-shell");
+      if (!anchor) return;
+
+      /* Posiziona il menu sopra il punto di rilascio del dito */
+      showSelectionMenuAtTouch(touchLastX, touchLastY);
+    }, 80);
+  }, { passive: true });
+
+  /**
+   * Posiziona e mostra il selection-menu vicino al punto di tocco,
+   * assicurandosi che non esca dallo schermo.
+   */
+  function showSelectionMenuAtTouch(touchX, touchY) {
+    /* Prima mostra il menu fuori schermo per misurarne le dimensioni */
+    selectionMenu.hidden = false;
+    selectionMenu.style.left = "-9999px";
+    selectionMenu.style.top  = "-9999px";
+
+    requestAnimationFrame(() => {
+      const menuW  = selectionMenu.offsetWidth  || 160;
+      const menuH  = selectionMenu.offsetHeight || 56;
+      const margin = 10;
+      const vw     = window.innerWidth;
+      const vh     = window.innerHeight;
+
+      /* Prova a posizionare sopra il tocco */
+      let top  = touchY - menuH - 16;
+      let left = touchX - menuW / 2;
+
+      /* Se esce in alto, mettilo sotto */
+      if (top < margin) top = touchY + 24;
+      /* Clamp orizzontale */
+      left = Math.max(margin, Math.min(left, vw - menuW - margin));
+      /* Non scendere troppo (sopra la bottom bar mobile) */
+      const bottomBarH = isMobile() ? 60 : 0;
+      top = Math.min(top, vh - menuH - bottomBarH - margin);
+
+      selectionMenu.style.left = `${left}px`;
+      selectionMenu.style.top  = `${top}px`;
+    });
+  }
+
+  /* Il pulsante "Segnalibro" nel menu deve funzionare su touch:
+     preveniamo mousedown (che deseleziona) e usiamo touchend */
+  if (selectionBtn) {
+    selectionBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); /* Blocca il mousedown che causerebbe deselect */
+    }, { passive: false });
+
+    /* touchend sul bottone: stessa logica del click, ma preserva la selezione */
+    selectionBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      /* Lascia che app.js gestisca la selezione corrente */
+      selectionBtn.click();
+    }, { passive: false });
+  }
+
+  /* Nasconde il menu se si tocca fuori */
+  document.addEventListener("touchstart", (e) => {
+    if (!selectionMenu.hidden && !selectionMenu.contains(e.target)) {
+      selectionMenu.hidden = true;
+      window.getSelection()?.removeAllRanges();
+    }
+  }, { passive: true });
+
+  /* ════════════════════════════════════════════════════════
+     SWIPE FEEDBACK sul book-stage (bottoni prev/next)
      ════════════════════════════════════════════════════════ */
 
   function triggerSwipeFeedback(direction) {
-    if (!master.bookStage) return;
-    master.bookStage.classList.add("is-swiping");
-    setTimeout(() => master.bookStage.classList.remove("is-swiping"), 280);
+    if (!bookStage) return;
+    bookStage.classList.add("is-swiping");
+    setTimeout(() => bookStage.classList.remove("is-swiping"), 280);
   }
-
-  /* ════════════════════════════════════════════════════════
-     ESCAPE KEY — chiude il drawer su mobile
-     ════════════════════════════════════════════════════════ */
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && isMobile()) closeDrawer();
   });

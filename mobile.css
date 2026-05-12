@@ -312,14 +312,21 @@
     padding: 8px 6px;
     padding-bottom: clamp(16px, 6vh, 52px);
     border-top: none;
-    /* Abilita scroll orizzontale se PDF più largo dello schermo */
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    /* Pinch zoom nativo */
-    touch-action: pan-x pan-y pinch-zoom;
+    /* "auto" permette la selezione testo nativa con long-press su iOS/Android.
+       Lo swipe pagina è gestito via JS (touchstart/touchend) su book-stage stesso. */
+    touch-action: auto;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Durante uno swipe attivo (classe aggiunta via JS), blocca la selezione */
+  .book-stage.is-swiping {
+    touch-action: pan-x pan-y;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   /* Pagina PDF: occupa tutta la larghezza disponibile */
@@ -704,15 +711,33 @@
   /* ── SELECTION MENU ── */
   /* Più grande e leggibile su mobile */
   .selection-menu {
+    /* Più grande e leggibile su mobile */
     padding: 6px;
-    border-radius: 12px;
+    border-radius: 14px;
+    /* z-index alto: deve stare sopra il PDF e la bottom bar */
+    z-index: 9000;
+    /* Ombra più marcata per visibilità */
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(215,25,32,0.25);
   }
 
   .selection-menu button {
-    min-height: var(--mob-tap-min);
-    padding: 0 14px;
-    font-size: 0.95rem;
+    min-height: var(--mob-tap-min);  /* 48px: target touch minimo */
+    min-width: var(--mob-tap-min);
+    padding: 0 16px;
+    font-size: 1rem;
     gap: 10px;
+    border-radius: 10px;
+  }
+
+  .selection-menu button svg {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  /* Feedback visivo al tocco */
+  .selection-menu button:active {
+    background: rgba(215, 25, 32, 0.28);
+    transform: scale(0.95);
   }
 
   /* ── EMPTY / LOADING STATE ── */

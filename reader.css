@@ -905,6 +905,9 @@ input:disabled {
   line-height: 1;
   text-size-adjust: none;
   forced-color-adjust: none;
+  /* Abilita la selezione testo su tutti i dispositivi incluso mobile */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .textLayer span,
@@ -914,6 +917,9 @@ input:disabled {
   white-space: pre;
   transform-origin: 0% 0%;
   cursor: text;
+  /* Fondamentale su iOS: senza questo il long-press non seleziona */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .textLayer span.search-hit {
