@@ -328,6 +328,37 @@
       .observe(master.bookmarkToggle, { attributes: true, attributeFilter: ["class"] });
   }
 
+  /* Osserva quando sidePanel.hidden cambia (es. dopo salvataggio segnalibro
+     da app.js che chiama syncSearchPanelVisibility direttamente).
+     In quel caso sincronizziamo lo stato dei bottoni mobile e, se il pannello
+     si è appena aperto in modalità "bookmarks", evidenziamo il bottone ricerca
+     mobile (che su mobile gestisce l'unico drawer unificato). */
+  if (master.sidePanel) {
+    new MutationObserver(() => {
+      if (!isMobile()) return;
+      const panelOpen = !master.sidePanel.hidden;
+
+      /* Stato attivo dei bottoni master */
+      const masterSearchActive   = master.searchToggle?.classList.contains("is-active")   ?? false;
+      const masterBookmarkActive = master.bookmarkToggle?.classList.contains("is-active") ?? false;
+
+      /* Su mobile il drawer è uno solo: è "aperto" se uno dei due è attivo */
+      const anyActive = masterSearchActive || masterBookmarkActive;
+
+      /* Sincronizza bottoni mobile */
+      if (mob.searchToggle) {
+        mob.searchToggle.classList.toggle("is-active", anyActive && panelOpen);
+      }
+      if (mob.bookmarkToggle) {
+        mob.bookmarkToggle.classList.toggle("is-active", masterBookmarkActive && panelOpen);
+      }
+
+      mob.backdrop?.classList.toggle("is-visible", false); /* backdrop sempre off */
+      document.body.classList.toggle("mob-drawer-open", panelOpen);
+      syncSearchInputState();
+    }).observe(master.sidePanel, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
   /* ════════════════════════════════════════════════════════
      SELEZIONE TESTO SU MOBILE (Android + iOS)
      ════════════════════════════════════════════════════════
@@ -440,9 +471,9 @@
       const bottomBarH = 64;
 
       let left = (minX + maxX) / 2 - menuW / 2;
-      let top  = minY - menuH - 14;
+      let top  = minY - menuH - 4;   /* appena sopra il testo selezionato */
 
-      if (top < margin) top = maxY + 14;
+      if (top < margin) top = maxY + 6;
 
       left = Math.max(margin, Math.min(left, vw - menuW - margin));
       top  = Math.max(margin, Math.min(top, vh - menuH - bottomBarH - margin));
