@@ -711,7 +711,11 @@ function showReader() {
 }
 
 function togglePanel(panelName) {
-  state.activePanel = state.activePanel === panelName ? null : panelName;
+  if (panelName === "search" && state.activePanel === "bookmarks" && !elements.bookmarkToggleButton) {
+    state.activePanel = null;
+  } else {
+    state.activePanel = state.activePanel === panelName ? null : panelName;
+  }
   syncSearchPanelVisibility();
   scheduleRender();
 }
@@ -738,9 +742,15 @@ function syncSearchPanelVisibility() {
   }
 
   // Bottone ricerca
-  elements.searchToggleButton.classList.toggle("is-active", isSearch);
-  elements.searchToggleButton.setAttribute("aria-expanded", String(isSearch));
-  const searchLabel = isSearch ? "Nascondi ricerca" : "Mostra ricerca";
+  const hasBookmarkToggle = Boolean(elements.bookmarkToggleButton);
+  const searchToggleActive = isSearch || (isBookmark && !hasBookmarkToggle);
+  elements.searchToggleButton.classList.toggle("is-active", searchToggleActive);
+  elements.searchToggleButton.setAttribute("aria-expanded", String(searchToggleActive));
+  const searchLabel = isSearch
+    ? "Nascondi ricerca"
+    : (isBookmark && !hasBookmarkToggle)
+      ? "Nascondi segnalibri"
+      : "Mostra ricerca";
   elements.searchToggleButton.title = searchLabel;
   elements.searchToggleButton.setAttribute("aria-label", searchLabel);
 
@@ -757,6 +767,14 @@ function syncSearchPanelVisibility() {
   // così il CSS mostra bookmarks-section invece di result-list
   if (isBookmark) {
     document.body.classList.remove("search-has-text");
+  }
+
+  // Quando chiudi il pannello, rimuovi l'evidenziazione attiva del segnalibro
+  if (!visible && state.activeBookmarkId) {
+    state.activeBookmarkId = null;
+    elements.pageSpread.querySelectorAll(".saved-highlight.is-active")
+      .forEach((hi) => hi.classList.remove("is-active"));
+    renderBookmarkList();
   }
 }
 
