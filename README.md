@@ -45,5 +45,5 @@ Esempio:
 
 ## 📋 TODO
 
-- [ ] Aggiungere segnalibri, evidenziando da mobile
 - [ ] Su mobile, quando allargo sul pdf, deve essere possibile leggere "per bene" quello che c'è scritto in basso (allargare il range entro il quale inquadrare il pdf)
+- [ ] Modo per effettuare export e import di
