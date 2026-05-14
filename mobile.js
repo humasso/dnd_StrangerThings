@@ -318,6 +318,20 @@
     syncSearchInputState();
   }
 
+  function isDrawerOpen() {
+    return isMobile() && (
+      master.searchToggle?.classList.contains("is-active") ||
+      master.bookmarkToggle?.classList.contains("is-active")
+    );
+  }
+
+  document.addEventListener("pointerdown", (e) => {
+    if (!isDrawerOpen()) return;
+    if (master.sidePanel?.contains(e.target)) return;
+    if (mob.topBar?.contains(e.target) || mob.bottomBar?.contains(e.target)) return;
+    closeDrawer();
+  }, { passive: true });
+
   /* Osserva cambiamenti di classe sui toggle master per sincronizzare */
   if (master.searchToggle) {
     new MutationObserver(syncDrawerState)

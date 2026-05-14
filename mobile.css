@@ -309,17 +309,26 @@
   .book-stage {
     flex: 1;
     min-height: 0;
-    padding: 8px 6px;
-    padding-bottom: clamp(16px, 6vh, 52px);
+    padding: 24px 12px 28px;
+    padding-bottom: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom) + 32px);
     border-top: none;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-padding-bottom: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom) + 28px);
     /* "auto" permette la selezione testo nativa con long-press su iOS/Android.
        Lo swipe pagina è gestito via JS (touchstart/touchend) su book-stage stesso. */
     touch-action: auto;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Extra scroll range after the page so zoomed content can be panned lower */
+  .book-stage::after {
+    content: "";
+    display: block;
+    height: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom) + 140px);
+    flex: 0 0 auto;
   }
 
   /* Durante uno swipe attivo (classe aggiunta via JS), blocca la selezione */
@@ -340,7 +349,6 @@
   .page-shell {
     border-radius: 3px;
     /* Ombra leggera su mobile */
-    box-shadow: 0 4px 20px rgba(0,0,0,0.45);
   }
 
   /* Toolbar navigazione pagine: nascosta
@@ -382,11 +390,6 @@
     height: 42px;
     border-radius: 1000px;
     -webkit-tap-highlight-color: transparent;
-  }
-
-  .mob-top-bar .icon-button:active {
-    background: rgba(215, 25, 32, 0.3);
-    transform: scale(0.92);
   }
 
   /* ── BOTTOM BAR MOBILE — toolbar fissa in basso ── */
@@ -745,6 +748,7 @@
     min-width: unset;
     width: min(340px, 88vw);
     padding: 28px 20px;
+    margin: auto;
   }
 
   .loading-page {
