@@ -93,25 +93,6 @@
     if (e.key === "Escape") hideUnavailable();
   });
 
-  /* ── Libretti card availability check ──────────────────────────────────
-   *
-   * FIX #2 — doppio fetch con fallback statico
-   * ─────────────────────────────────────────────────────────────────────
-   * Strategia:
-   *   1. Prova il path servito dinamicamente dal server Python
-   *      (assets/contenuti/libretti/books.json).
-   *   2. Se la risposta non è OK (es. nessun server Python attivo,
-   *      deploy su hosting statico, doppio-clic sul file HTML), tenta
-   *      il fallback su assets/contenuti/libretti/books.static.json —
-   *      un file JSON statico committed nel repo che elenca i PDF
-   *      disponibili offline.
-   *   3. Solo se entrambi falliscono la card viene disabilitata.
-   *
-   * Come mantenere books.static.json:
-   *   Ogni volta che aggiungi un PDF, aggiorna manualmente
-   *   assets/contenuti/libretti/books.static.json con la stessa
-   *   struttura di books.json (id, title, category, pdf).
-   * ───────────────────────────────────────────────────────────────────── */
   async function updateLibrettiIcon() {
     const card = document.getElementById("librettiCard");
     if (!card) return;
