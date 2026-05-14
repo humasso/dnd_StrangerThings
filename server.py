@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
 Server locale – Hellfire Club
+
 Serve i file statici del sito e genera books.json automaticamente
 scansionando la cartella assets/contenuti/libretti/. Ogni PDF nella cartella appare
 nel carosello senza toccare nessun file di configurazione.
 
-Uso:  python3 server.py
+Uso: python3 server.py
 """
+
 import json
 import re
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 PORT = 8765
+HOST = "127.0.0.1"
+
 LIBRETTI_DIR = Path("assets/contenuti/libretti")
 
 
@@ -24,6 +28,7 @@ def filename_to_title(stem: str) -> str:
 def scan_libretti() -> list:
     """
     Scansiona assets/contenuti/libretti/ e restituisce la lista di libri per books.json.
+
     Per ogni file .pdf può esistere un .json con lo stesso nome base
     che sovrascrive titolo e categoria:
         { "title": "Titolo personalizzato", "category": "Play Guide" }
@@ -37,14 +42,18 @@ def scan_libretti() -> list:
         book_id = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")
 
         meta_file = LIBRETTI_DIR / f"{stem}.json"
-        try:
-            meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.exists() else {}
-        except Exception:
-            meta = {}
+        meta: dict = {}
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                print(f"  [WARN] Meta JSON non valido per '{stem}': {exc}")
+            except OSError as exc:
+                print(f"  [WARN] Impossibile leggere '{meta_file.name}': {exc}")
 
         books.append({
-            "id":       meta.get("id", book_id),
-            "title":    meta.get("title", filename_to_title(stem)),
+            "id":       meta.get("id",       book_id),
+            "title":    meta.get("title",    filename_to_title(stem)),
             "category": meta.get("category", "Libretto"),
             "pdf":      f"assets/contenuti/libretti/{pdf.name}",
         })
@@ -53,6 +62,7 @@ def scan_libretti() -> list:
 
 
 class Handler(SimpleHTTPRequestHandler):
+
     def do_GET(self):
         # Intercetta /assets/contenuti/libretti/books.json e lo genera dinamicamente
         if self.path.split("?")[0] == "/assets/contenuti/libretti/books.json":
@@ -63,24 +73,30 @@ class Handler(SimpleHTTPRequestHandler):
     def _serve_books_json(self):
         payload = json.dumps(scan_libretti(), ensure_ascii=False, indent=2).encode("utf-8")
         self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type",   "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Cache-Control",  "no-cache")
         self.end_headers()
         self.wfile.write(payload)
 
     def log_message(self, fmt, *args):
         # Stampa solo richieste non-asset (filtra font, icone, ecc.)
-        path = args[0].split()[1] if args else ""
+        parts = args[0].split() if args else []
+        path  = parts[1] if len(parts) > 1 else ""
         if not any(path.endswith(ext) for ext in (".png", ".jpg", ".webp", ".woff2", ".ico")):
-            print(f"  {args[1]}  {path}")
+            status = args[1] if len(args) > 1 else "-"
+            print(f"  {status} {path}")
 
 
 if __name__ == "__main__":
     import os
     os.chdir(Path(__file__).parent)
-    print(f"Hellfire Club — server su http://localhost:{PORT}")
+
+    pdf_count = len(list(LIBRETTI_DIR.glob("*.pdf"))) if LIBRETTI_DIR.exists() else 0
+
+    print(f"Hellfire Club — server su http://{HOST}:{PORT}")
     print(f"Cartella libretti: {LIBRETTI_DIR.resolve()}")
-    print(f"PDF trovati: {len(list(LIBRETTI_DIR.glob('*.pdf')) if LIBRETTI_DIR.exists() else [])}")
+    print(f"PDF trovati: {pdf_count}")
     print("Premi Ctrl+C per fermare.\n")
-    HTTPServer(("", PORT), Handler).serve_forever()
+
+    HTTPServer((HOST, PORT), Handler).serve_forever()
