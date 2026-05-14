@@ -17,7 +17,9 @@
 
   /* ── Breakpoint oltre il quale non facciamo nulla ── */
   const MOBILE_BP = 768;
+  const DRAWER_BP = 980;
   const isMobile = () => window.innerWidth <= MOBILE_BP;
+  const isDrawerMode = () => window.innerWidth <= DRAWER_BP;
 
   /* ── Livelli zoom ciclici per mobile ── */
   const ZOOM_STEPS = [80, 100, 130, 160];
@@ -319,7 +321,7 @@
   }
 
   function isDrawerOpen() {
-    return isMobile() && (
+    return isDrawerMode() && (
       master.searchToggle?.classList.contains("is-active") ||
       master.bookmarkToggle?.classList.contains("is-active")
     );

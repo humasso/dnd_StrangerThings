@@ -424,6 +424,7 @@ body.page-libretti main::before {
   position: absolute;
   left: clamp(14px, 4vw, 52px);
   top: 50%;
+  transform: translateY(-50%);
   z-index: 10;
   width: 42px;
   height: 42px;
@@ -436,6 +437,7 @@ body.page-libretti main::before {
   color: var(--reader-ink);
   cursor: pointer;
  }
+
 
 .home-button svg {
   display: block;
@@ -644,6 +646,10 @@ body.page-libretti main::before {
 
 .icon-button:active {
   transform: translateY(1px);
+}
+
+.home-button.icon-button:active {
+  transform: translateY(-50%);
 }
 
 .icon-button:disabled,
