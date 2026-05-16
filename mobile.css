@@ -313,14 +313,24 @@
     padding-bottom: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom) + 32px);
     border-top: none;
     overflow: auto;
+    overflow-anchor: none;
     -webkit-overflow-scrolling: touch;
     scroll-padding-bottom: calc(var(--mob-bottom-bar) + var(--mob-safe-bottom) + 28px);
     /* "auto" permette la selezione testo nativa con long-press su iOS/Android.
        Lo swipe pagina è gestito via JS (touchstart/touchend) su book-stage stesso. */
-    touch-action: auto;
-    display: flex;
+    touch-action: auto;     overflow-x: auto;    display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .reader-layout.is-continuous .book-stage {
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  /* When zoomed in (>100%), align content to left for horizontal panning */
+  .reader-layout.is-continuous.is-zoomed .book-stage {
+    justify-content: flex-start;
   }
 
   /* Extra scroll range after the page so zoomed content can be panned lower */
@@ -346,6 +356,19 @@
     padding: 0;
   }
 
+  .reader-layout.is-continuous .spread {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 18px;
+    width: fit-content;
+  }
+
+  /* When zoomed in (>100%), align to left for horizontal panning */
+  .reader-layout.is-continuous.is-zoomed .spread {
+    align-items: flex-start;
+  }
+
   .page-shell {
     border-radius: 3px;
     /* Ombra leggera su mobile */
@@ -360,6 +383,7 @@
   /* Status bar: compatta */
   .statusbar {
     display: none; /* nascosta su mobile, spazio usato dalla bottom bar */
+    border: none;
   }
 
   /* ── TOP MINI BAR MOBILE — strumenti compatti in alto ── */
@@ -409,6 +433,16 @@
     padding-right: 8px;
     pointer-events: none;
     transition: opacity var(--t-med);
+  }
+
+  .is-home-view .mob-bottom-bar,
+  .is-home-view .mob-top-bar {
+    display: none;
+  }
+
+  body:not(.has-pdf) .mob-bottom-bar,
+  body:not(.has-pdf) .mob-top-bar {
+    display: none;
   }
 
   .mob-drawer-open .mob-bottom-bar {
@@ -674,18 +708,15 @@
   }
 
   /* ── DIALOG SEGNALIBRO ── */
-  /* Il dialog occupa tutto lo schermo (stile sheet) */
+  /* Centra il dialog come su desktop */
   .bookmark-dialog {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    /* Allineato in fondo come sheet */
+    width: min(420px, calc(100vw - 24px));
+    max-width: min(420px, calc(100vw - 24px));
+    margin: auto;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-radius: var(--mob-drawer-radius) var(--mob-drawer-radius) 0 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    inset: 0;
+    border-radius: 14px;
+    padding-bottom: 0;
   }
 
   .bookmark-form {

@@ -38,6 +38,7 @@ const elements = {
   nextButton:             document.getElementById("nextButton"),
   nextResultButton:       document.getElementById("nextResultButton"),
   pageInput:              document.getElementById("pageInput"),
+  pageIndicator:          document.getElementById("pageIndicator"),
   pageSpread:             document.getElementById("pageSpread"),
   prevButton:             document.getElementById("prevButton"),
   prevResultButton:       document.getElementById("prevResultButton"),
@@ -74,12 +75,19 @@ const state = {
   generatedCoverCache:     new Map(),
   generatedCoverFailures:  new Set(),
   generatedCoverTasks:     new Map(),
+  continuousScale:         null,
+  continuousScaleWidth:    null,
+  continuousScaleZoom:     null,
+  isContinuous:            true,
   isSpread:                false,
   isToolsVisible:          true,
   pageTextCache:           new Map(),
   pdf:                     null,
   pendingBookmarkDraft:    null,
   pendingBookmarkScrollId: null,
+  pendingScrollAnchor:     null,
+  pendingScrollPage:       null,
+  isZooming:               false,
   renderId:                0,
   searchMatches:           [],
   searchPosition:          -1,
@@ -89,12 +97,27 @@ const state = {
 };
 
 const media = window.matchMedia("(max-width: 760px)");
-const resizeObserver = new ResizeObserver(() => scheduleRender());
+let lastStageWidth = 0;
+const resizeObserver = new ResizeObserver(() => {
+  const stage = elements.bookStage;
+  if (!stage) return;
+  const width = stage.clientWidth;
+
+  /* In continuous mode, only render if width changed by >20px to avoid jitter */
+  if (state.pdf && isContinuousMode()) {
+    if (Math.abs(width - lastStageWidth) <= 20) return;
+  }
+
+  lastStageWidth = width;
+  scheduleRender();
+});
 
 let renderTimer = 0;
 let searchTimer = 0;
 let carouselAnimationTimer = 0;
 let progressTimer = 0;
+let scrollSyncRaf = 0;
+let isScrollTrackingBound = false;
 
 /* ============================================================
    BOOT
@@ -138,9 +161,9 @@ function bindEvents() {
   });
 
   elements.zoomRange.addEventListener("input", () => {
-    state.zoomPercent = Number.parseInt(elements.zoomRange.value, 10);
-    elements.zoomValue.textContent = `${state.zoomPercent}%`;
-    scheduleRender();
+    const next = Number.parseInt(elements.zoomRange.value, 10);
+    if (!Number.isFinite(next)) return;
+    setZoomPercent(next);
   });
 
   elements.zoomOutButton.addEventListener("click", () => changeZoom(-10));
@@ -707,6 +730,7 @@ function showReader() {
   elements.homeScreen.hidden  = true;
   elements.readerLayout.hidden = false;
   elements.homeButton.hidden  = false;
+  applyReaderLayoutClasses();
   syncSearchPanelVisibility();
 }
 
@@ -819,6 +843,9 @@ async function loadPdf(source, title) {
   state.pdf          = pdf;
   state.totalPages   = pdf.numPages;
   state.currentPage  = 1;
+  state.pendingScrollPage = 1;
+  state.activeBookmarkId = null;
+  state.pendingBookmarkScrollId = null;
   state.pageTextCache.clear();
   state.searchMatches  = [];
   state.searchPosition = -1;
@@ -829,16 +856,22 @@ async function loadPdf(source, title) {
   elements.searchInput.value         = "";
   elements.resultList.replaceChildren();
   elements.searchCount.textContent   = "0 risultati";
+  elements.bookStage.scrollTop       = 0;
 
   renderBookmarkList();
   setStatus(`${state.totalPages} pagine`);
   syncControls();
-  await renderSpread();
+  await renderAllPages();
   finishProgress();
 }
 
 function turnPage(delta) {
   if (!state.pdf) return;
+  if (isContinuousMode()) {
+    const next = clamp(state.currentPage + (delta > 0 ? 1 : -1), 1, state.totalPages);
+    goToPage(next);
+    return;
+  }
   const visible  = getVisiblePages();
   const first    = visible[0]                       || state.currentPage;
   const last     = visible[visible.length - 1]      || state.currentPage;
@@ -859,6 +892,13 @@ function goToPage(pageNumber) {
   const clamped = clamp(Number.isFinite(pageNumber) ? pageNumber : 1, 1, state.totalPages);
   state.direction = clamped >= state.currentPage ? "forward" : "back";
 
+  if (isContinuousMode()) {
+    state.currentPage = clamped;
+    state.pendingScrollPage = clamped;
+    syncControls();
+    return;
+  }
+
   // In spread mode, align to even page start (except page 1)
   if (isSpreadActive() && clamped > 1 && clamped % 2 !== 0) {
     state.currentPage = clamped - 1;
@@ -872,6 +912,7 @@ function goToPage(pageNumber) {
 
 function getVisiblePages() {
   if (!state.pdf) return [];
+  if (isContinuousMode()) return [state.currentPage];
   if (!isSpreadActive()) return [state.currentPage];
   if (state.currentPage === 1) return [1];
   const left = state.currentPage % 2 === 0 ? state.currentPage : state.currentPage - 1;
@@ -879,14 +920,219 @@ function getVisiblePages() {
 }
 
 function isSpreadActive() {
-  return state.isSpread && !media.matches;
+  return !isContinuousMode() && state.isSpread && !media.matches;
+}
+
+function isContinuousMode() {
+  return Boolean(state.isContinuous);
+}
+
+function applyReaderLayoutClasses() {
+  elements.readerLayout.classList.toggle("is-continuous", state.isContinuous);
+  /* Mark as zoomed if zoom > 100% for CSS alignment logic */
+  elements.readerLayout.classList.toggle("is-zoomed", state.zoomPercent > 100);
+}
+
+function setZoomPercent(next, { skipRender = false } = {}) {
+  if (state.pdf && isContinuousMode()) {
+    state.pendingScrollAnchor = captureScrollAnchor();
+    state.isZooming = true;
+  }
+  state.zoomPercent = next;
+  elements.zoomRange.value = String(next);
+  elements.zoomValue.textContent = `${next}%`;
+  applyReaderLayoutClasses();
+  if (!skipRender) scheduleRender();
 }
 
 function scheduleRender() {
   clearTimeout(renderTimer);
   renderTimer = window.setTimeout(() => {
-    if (state.pdf) renderSpread();
+    if (!state.pdf) return;
+    if (isContinuousMode()) {
+      renderAllPages();
+    } else {
+      renderSpread();
+    }
   }, 90);
+}
+
+async function renderAllPages() {
+  if (!state.pdf) { syncControls(); return; }
+
+  const renderId = ++state.renderId;
+  const pages = Array.from({ length: state.totalPages }, (_, i) => i + 1);
+  const shells = ensureAllPageShells(pages);
+  const stageWidth = elements.bookStage.clientWidth;
+
+  elements.emptyState.hidden = true;
+  elements.bookStage.classList.remove("is-turning-forward", "is-turning-back");
+  updateReadingProgress();
+
+  try {
+    const scale = await getContinuousScale(pages[0], stageWidth);
+    await sizeContinuousShells(scale, pages[0], shells);
+    if (state.pendingScrollAnchor) {
+      scrollToAnchor(state.pendingScrollAnchor);
+      state.pendingScrollAnchor = null;
+    }
+    for (let i = 0; i < pages.length; i += 1) {
+      if (renderId !== state.renderId) return;
+      await renderPage(pages[i], shells[i], scale, renderId);
+    }
+    if (renderId === state.renderId) {
+      applySearchHighlights();
+      scrollToPendingBookmark();
+      if (Number.isFinite(state.pendingScrollPage)) {
+        scrollToPage(state.pendingScrollPage, true);
+        state.pendingScrollPage = null;
+      }
+      state.isZooming = false;
+      updateCurrentPageFromScroll();
+      setStatus("Pronto");
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Errore durante il rendering del PDF");
+  } finally {
+    state.isZooming = false;
+    syncControls();
+    bindScrollTracking();
+  }
+}
+
+function ensureAllPageShells(pageNumbers) {
+  const existing = Array.from(elements.pageSpread.children);
+  if (existing.length === pageNumbers.length) {
+    pageNumbers.forEach((pn, i) => {
+      const shell = existing[i];
+      if (!shell) return;
+      shell.dataset.page = String(pn);
+      shell.setAttribute("aria-label", `Pagina ${pn}`);
+    });
+    return existing;
+  }
+
+  const shells = pageNumbers.map((pn) => createPageShell(pn, 1, 0));
+  elements.pageSpread.replaceChildren(...shells);
+  return shells;
+}
+
+async function getContinuousScale(pageNumber, stageWidth) {
+  const width = Number.isFinite(stageWidth) && stageWidth > 0
+    ? stageWidth
+    : elements.bookStage.clientWidth;
+  if (
+    Number.isFinite(state.continuousScale)
+    && state.continuousScaleWidth === width
+    && state.continuousScaleZoom === state.zoomPercent
+  ) {
+    return state.continuousScale;
+  }
+  const page     = await state.pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: 1 });
+  const availW   = Math.max(width - getStagePaddingX() - 6, 280);
+  const fitScale = availW / viewport.width;
+  const nextScale = clamp(fitScale * (state.zoomPercent / 100), 0.24, 4);
+  state.continuousScale = nextScale;
+  state.continuousScaleWidth = width;
+  state.continuousScaleZoom = state.zoomPercent;
+  return nextScale;
+}
+
+async function sizeContinuousShells(scale, pageNumber, shells) {
+  const page = await state.pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale });
+  const width = `${viewport.width}px`;
+  const height = `${viewport.height}px`;
+  shells.forEach((shell) => {
+    if (shell.style.width !== width) shell.style.width = width;
+    if (shell.style.height !== height) shell.style.height = height;
+  });
+}
+
+function bindScrollTracking() {
+  if (isScrollTrackingBound) return;
+  elements.bookStage.addEventListener("scroll", () => {
+    if (state.pendingScrollPage && !state.isZooming) {
+      state.pendingScrollPage = null;
+    }
+    if (scrollSyncRaf) return;
+    scrollSyncRaf = window.requestAnimationFrame(() => {
+      scrollSyncRaf = 0;
+      updateCurrentPageFromScroll();
+    });
+  }, { passive: true });
+  isScrollTrackingBound = true;
+}
+
+function updateCurrentPageFromScroll() {
+  if (!state.pdf || !isContinuousMode() || state.isZooming) return;
+  const shells = elements.pageSpread.querySelectorAll(".page-shell");
+  const stageRect = elements.bookStage.getBoundingClientRect();
+  const current = getMostVisiblePage(shells, stageRect, state.currentPage);
+  if (current !== state.currentPage) {
+    state.currentPage = current;
+    if (state.pendingScrollPage) {
+      state.pendingScrollPage = null;
+    }
+    syncControls();
+    updateReadingProgress();
+  }
+}
+
+function getMostVisiblePage(shells, stageRect, fallbackPage) {
+  let current = fallbackPage;
+  let bestVisible = -1;
+
+  shells.forEach((shell) => {
+    const page = Number.parseInt(shell.dataset.page, 10);
+    if (!Number.isFinite(page)) return;
+    const rect = shell.getBoundingClientRect();
+    const visibleTop = Math.max(rect.top, stageRect.top);
+    const visibleBottom = Math.min(rect.bottom, stageRect.bottom);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    if (visibleHeight > bestVisible) {
+      bestVisible = visibleHeight;
+      current = page;
+    }
+  });
+
+  return current;
+}
+
+function scrollToPage(pageNumber, smooth) {
+  const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${pageNumber}"]`);
+  if (!shell) return;
+  shell.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+}
+
+function captureScrollAnchor() {
+  const shells = elements.pageSpread.querySelectorAll(".page-shell");
+  const stageRect = elements.bookStage.getBoundingClientRect();
+  const page = getMostVisiblePage(shells, stageRect, state.currentPage);
+  const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${page}"]`);
+  if (!shell) return null;
+  const shellRect = shell.getBoundingClientRect();
+  if (!shellRect.width || !shellRect.height) return null;
+  const centerX = stageRect.left + stageRect.width / 2;
+  const centerY = stageRect.top + stageRect.height / 2;
+  const xRatio = clamp((centerX - shellRect.left) / shellRect.width, 0, 1);
+  const yRatio = clamp((centerY - shellRect.top) / shellRect.height, 0, 1);
+  return { page, xRatio, yRatio };
+}
+
+function scrollToAnchor(anchor, smooth = false) {
+  const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${anchor.page}"]`);
+  if (!shell) return;
+  const stage = elements.bookStage;
+  const targetLeft = shell.offsetLeft + anchor.xRatio * shell.clientWidth - stage.clientWidth / 2;
+  const targetTop = shell.offsetTop + anchor.yRatio * shell.clientHeight - stage.clientHeight / 2;
+  stage.scrollTo({
+    left: Math.max(0, targetLeft),
+    top: Math.max(0, targetTop),
+    behavior: smooth ? "smooth" : "auto",
+  });
 }
 
 async function renderSpread() {
@@ -942,7 +1188,7 @@ function createPageShell(pageNumber, pageCount, index) {
   shell.className = "page-shell";
   shell.dataset.page = String(pageNumber);
   shell.setAttribute("aria-label", `Pagina ${pageNumber}`);
-  if (pageCount > 1) shell.classList.add(index === 0 ? "is-left" : "is-right");
+  if (!isContinuousMode() && pageCount > 1) shell.classList.add(index === 0 ? "is-left" : "is-right");
 
   const loading = document.createElement("div");
   loading.className = "loading-page";
@@ -985,7 +1231,6 @@ async function renderPage(pageNumber, shell, scale, renderId) {
   const viewport = page.getViewport({ scale });
   const dpr      = window.devicePixelRatio || 1;
 
-  shell.replaceChildren();
   shell.style.width  = `${viewport.width}px`;
   shell.style.height = `${viewport.height}px`;
 
@@ -1012,8 +1257,6 @@ async function renderPage(pageNumber, shell, scale, renderId) {
   linkLayer.style.width  = `${viewport.width}px`;
   linkLayer.style.height = `${viewport.height}px`;
 
-  shell.append(canvas, highlightLayer, textLayer, linkLayer);
-
   await page.render({
     canvasContext: canvas.getContext("2d", { alpha: false }),
     transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
@@ -1032,6 +1275,8 @@ async function renderPage(pageNumber, shell, scale, renderId) {
   const annotations = await page.getAnnotations({ intent: "display" });
   renderLinkLayer(annotations, linkLayer, viewport);
   renderBookmarkHighlights(pageNumber, highlightLayer);
+
+  shell.replaceChildren(canvas, highlightLayer, textLayer, linkLayer);
 }
 
 /* ── Bookmark highlights on page ── */
@@ -1112,10 +1357,7 @@ function changeZoom(delta) {
     Number(elements.zoomRange.min),
     Number(elements.zoomRange.max)
   );
-  state.zoomPercent = next;
-  elements.zoomRange.value = String(next);
-  elements.zoomValue.textContent = `${next}%`;
-  scheduleRender();
+  setZoomPercent(next);
 }
 
 /* ============================================================
@@ -1452,13 +1694,19 @@ function updateSelectionMenu() {
   if (!sel || sel.isCollapsed || !sel.rangeCount) { hideSelectionMenu(); return; }
   const shell = getSelectionPageShell(sel);
   if (!shell || !elements.bookStage.contains(shell)) { hideSelectionMenu(); return; }
-  const rangeRect = sel.getRangeAt(0).getBoundingClientRect();
-  if (!rangeRect.width && !rangeRect.height) { hideSelectionMenu(); return; }
+  const range = sel.getRangeAt(0);
+  const rects = Array.from(range.getClientRects());
+  if (!rects.length) { hideSelectionMenu(); return; }
+
+  const minX = Math.min(...rects.map((r) => r.left));
+  const maxX = Math.max(...rects.map((r) => r.right));
+  const minY = Math.min(...rects.map((r) => r.top));
 
   elements.selectionMenu.hidden = false;
   const menuRect = elements.selectionMenu.getBoundingClientRect();
-  const left = clamp(rangeRect.left + rangeRect.width / 2 - menuRect.width / 2, 8, window.innerWidth - menuRect.width - 8);
-  const top  = clamp(rangeRect.top - menuRect.height - 8, 8, window.innerHeight - menuRect.height - 8);
+  const left = clamp((minX + maxX) / 2 - menuRect.width / 2, 8, window.innerWidth - menuRect.width - 8);
+  const desiredTop = minY - menuRect.height - 10;
+  const top  = clamp(desiredTop, 8, window.innerHeight - menuRect.height - 8);
   elements.selectionMenu.style.left = `${left}px`;
   elements.selectionMenu.style.top  = `${top}px`;
 }
@@ -1517,16 +1765,20 @@ function syncControls() {
   const visible = getVisiblePages();
   const first   = visible[0]                    || state.currentPage;
   const last    = visible[visible.length - 1]   || state.currentPage;
+  const continuous = isContinuousMode();
+
+  document.body.classList.toggle("has-pdf", has);
 
   elements.emptyState.hidden              = has;
   elements.pageInput.disabled             = !has;
   elements.pageInput.value                = String(first);
-  elements.prevButton.disabled            = !has || first <= 1;
-  elements.nextButton.disabled            = !has || last >= state.totalPages;
+  elements.prevButton.disabled            = continuous || !has || first <= 1;
+  elements.nextButton.disabled            = continuous || !has || last >= state.totalPages;
   elements.zoomInButton.disabled          = !has;
   elements.zoomOutButton.disabled         = !has;
   elements.zoomRange.disabled             = !has;
-  elements.spreadButton.disabled          = !has;
+  elements.spreadButton.disabled          = !has || continuous;
+  elements.spreadButton.hidden            = continuous;
   elements.addPageBookmarkButton.disabled = !has;
   // elements.bookmarkToggleButton.disabled  = !has;
   elements.searchInput.disabled           = !has;
@@ -1535,6 +1787,12 @@ function syncControls() {
   elements.totalPages.textContent         = `/ ${state.totalPages || 0}`;
   elements.zoomRange.value                = String(state.zoomPercent);
   elements.zoomValue.textContent          = `${state.zoomPercent}%`;
+  applyReaderLayoutClasses();
+
+  if (elements.pageIndicator) {
+    elements.pageIndicator.hidden = !has || !continuous;
+    elements.pageIndicator.textContent = `Pagina ${first} / ${state.totalPages || 0}`;
+  }
 }
 
 function setStatus(message) {

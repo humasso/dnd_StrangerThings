@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#060404">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Welcome to the Hellfire Club – D&D Stranger Things</title>
+  <title>Welcome to the Hellfire Club – D&amp;D Stranger Things</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
@@ -71,6 +71,7 @@
 <!-- Modal "Attualmente non disponibile" -->
 <div class="st-modal" id="stModal"
      role="dialog" aria-modal="true" aria-label="Contenuto non disponibile"
+     tabindex="-1"
      onclick="hideUnavailable()">
   <div class="st-modal-inner">
     <p class="st-modal-label">Attualmente<br>non disponibile</p>
@@ -83,6 +84,7 @@
   function showUnavailable() {
     const modal = document.getElementById("stModal");
     modal.classList.add("visible");
+    modal.focus(); // FIX a11y — sposta il focus al modal quando si apre
   }
 
   function hideUnavailable() {
@@ -93,40 +95,45 @@
     if (e.key === "Escape") hideUnavailable();
   });
 
+  /* ── Libretti card availability check ──
+   *
+   * FIX CRITICO #2 — doppio tentativo per supportare sia il server Python
+   * (books.json generato dinamicamente) sia l'apertura diretta del file HTML
+   * senza backend (es. doppio clic, hosting statico).
+   *
+   * Strategia:
+   *   1. Prova il path del server Python  →  assets/contenuti/libretti/books.json
+   *   2. Se fallisce (file://, server assente, hosting statico), prova il fallback
+   *      →  assets/contenuti/libretti/books.static.json
+   *      Questo file va creato manualmente e committato nel repo.
+   *      Ha la stessa struttura di books.json ma è un file fisso su disco.
+   *
+   * Se nessuno dei due è raggiungibile, la card resta disabilitata.
+   */
+  async function fetchBooks() {
+    const PATHS = [
+      "assets/contenuti/libretti/books.json",        // generato dal server Python
+      "assets/contenuti/libretti/books.static.json", // fallback statico committato
+    ];
+
+    for (const path of PATHS) {
+      try {
+        const r = await fetch(path, { cache: "no-store" });
+        if (!r.ok) continue;
+        const books = await r.json();
+        if (Array.isArray(books) && books.length > 0) return books;
+      } catch {
+        // fetch fallisce (es. CORS su file://, server non attivo): prova il prossimo
+      }
+    }
+    return [];
+  }
+
   async function updateLibrettiIcon() {
     const card = document.getElementById("librettiCard");
     if (!card) return;
-
-    const DYNAMIC_URL = "assets/contenuti/libretti/books.json";
-    const STATIC_URL  = "assets/contenuti/libretti/books.static.json";
-
-    let books = null;
-
-    // Tentativo 1 — feed dinamico (server Python)
-    try {
-      const r = await fetch(DYNAMIC_URL, { cache: "no-store" });
-      if (r.ok) {
-        books = await r.json();
-      }
-    } catch {
-      // nessun server attivo — si passa al fallback
-    }
-
-    // Tentativo 2 — file statico committed nel repo
-    if (!Array.isArray(books)) {
-      try {
-        const r = await fetch(STATIC_URL, { cache: "default" });
-        if (r.ok) {
-          books = await r.json();
-        }
-      } catch {
-        // anche il file statico non esiste
-      }
-    }
-
-    // Applica lo stato alla card
-    const hasBooks = Array.isArray(books) && books.length > 0;
-    card.classList.toggle("card-folder-missing", !hasBooks);
+    const books = await fetchBooks();
+    card.classList.toggle("card-folder-missing", books.length === 0);
   }
 
   document.addEventListener("DOMContentLoaded", updateLibrettiIcon);

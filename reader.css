@@ -601,6 +601,18 @@ body.page-libretti main::before {
   padding: 6px 0 4px;
 }
 
+.reader-layout.is-continuous .page-toolbar {
+  display: none;
+}
+
+.is-home-view .page-toolbar {
+  display: none;
+}
+
+body:not(.has-pdf) .page-toolbar {
+  display: none;
+}
+
 /* ── Icon buttons ── */
 .icon-button {
   display: inline-flex;
@@ -666,14 +678,12 @@ input:disabled {
   height: 40px;
   padding: 0 10px;
   border-radius: 8px;
-  background: rgba(255, 244, 230, 0.05);
-  border: 1px solid rgba(255, 244, 230, 0.1);
   color: var(--reader-muted);
   font-weight: 700;
 }
 
 .page-jump input {
-  width: 4.25rem;
+  width: 30px;
   height: 30px;
   border: 0;
   border-bottom: 1px solid transparent;
@@ -724,6 +734,17 @@ input:disabled {
   /* Custom scrollbar */
   scrollbar-width: thin;
   scrollbar-color: rgba(215, 25, 32, 0.35) transparent;
+}
+
+.reader-layout.is-continuous .book-stage {
+  align-items: start;
+  justify-content: center;
+  scrollbar-gutter: stable;
+}
+
+/* When zoomed in (>100%), align content to left for horizontal panning */
+.reader-layout.is-continuous.is-zoomed .book-stage {
+  justify-content: flex-start;
 }
 
 .book-stage::-webkit-scrollbar {
@@ -823,6 +844,26 @@ input:disabled {
   min-height: 100%;
   margin: auto;
   perspective: 1800px;
+}
+
+.reader-layout.is-continuous .spread {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  min-height: auto;
+  gap: 22px;
+  margin: 0;
+  perspective: none;
+}
+
+/* When zoomed in (>100%), align to left for horizontal panning */
+.reader-layout.is-continuous.is-zoomed .spread {
+  align-items: flex-start;
+}
+
+.reader-layout.is-continuous .page-shell {
+  margin: 0;
 }
 
 .page-shell {
@@ -1346,7 +1387,23 @@ body.search-has-text .bookmarks-section {
   color: var(--reader-muted);
   font-size: 0.86rem;
   font-weight: 650;
-  border-top: 1px solid rgba(255, 244, 230, 0.05);
+}
+
+.page-indicator {
+  position: fixed;
+  right: clamp(14px, 2vw, 24px);
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  padding: 6px 12px;
+  border: 1px solid rgba(215, 25, 32, 0.28);
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.92);
+  color: var(--reader-ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 /* ── Selection menu (float above selection) ── */
@@ -1402,6 +1459,9 @@ body.search-has-text .bookmarks-section {
 /* ── Bookmark dialog ── */
 .bookmark-dialog {
   width: min(420px, calc(100vw - 32px));
+  position: fixed;
+  inset: 0;
+  margin: auto;
   padding: 0;
   border: 1px solid rgba(255, 244, 230, 0.14);
   border-radius: 10px;
