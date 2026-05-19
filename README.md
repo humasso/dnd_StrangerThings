@@ -4,6 +4,8 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
 
 ## Funzionalità
 
+Inserisci il pdf da leggere in `contenuti`.
+
 ### Tools
 
 - Ricerca full-text nel PDF

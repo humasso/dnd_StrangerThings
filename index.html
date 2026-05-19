@@ -6,12 +6,230 @@
   <meta name="theme-color" content="#060404">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Welcome to the Hellfire Club – D&amp;D Stranger Things</title>
+
+  <meta name="description" content="Lettore PDF per i libretti D&D in stile Stranger Things — Hellfire Club">
+  <meta property="og:title"       content="Hellfire Club – D&D Stranger Things">
+  <meta property="og:description" content="Leggi i libretti D&D in stile Stranger Things. Ricerca full-text, segnalibri, modalità spread e swipe mobile.">
+  <meta property="og:image"       content="assets/header/Titolo.png">
+  <meta property="og:type"        content="website">
+
+  <title>Welcome to the Hellfire Club – D&D Stranger Things</title>
+  <link rel="icon" href="assets/icons/libretti.png" type="image/png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="mobile.css">
+
+  <style>
+    /* ═══════════════════════════════════════════
+       Pannello segnalibri — fixed bottom-right
+    ═══════════════════════════════════════════ */
+    #bm-bar {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    /* ── Pill toggle ── */
+    #bm-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: rgba(6,4,4,0.85);
+      border: 1px solid rgba(210,28,28,0.55);
+      border-radius: 999px;
+      color: #e8c9c9;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      transition: background .2s, border-color .2s, transform .15s;
+      box-shadow: 0 0 14px rgba(210,28,28,0.18);
+    }
+    #bm-toggle:hover  { background: rgba(28,6,6,0.95); border-color: rgba(210,28,28,0.85); transform: scale(1.03); }
+    #bm-toggle:active { transform: scale(0.97); }
+    #bm-toggle svg    { flex-shrink: 0; }
+
+    #bm-pill-badge {
+      display: none;
+      font-family: sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(210,28,28,0.85);
+      color: #fff;
+      border-radius: 999px;
+      padding: 1px 7px;
+      letter-spacing: 0;
+    }
+    #bm-pill-badge.visible { display: inline-block; }
+
+    /* ── Pannello espandibile ── */
+    #bm-panel {
+      width: 300px;
+      background: rgba(6,4,4,0.95);
+      border: 1px solid rgba(210,28,28,0.4);
+      border-radius: 14px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(210,28,28,0.08);
+      transform-origin: bottom right;
+      transform: scale(0.88);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .22s cubic-bezier(.34,1.4,.64,1), opacity .18s ease;
+    }
+    #bm-panel.open { transform: scale(1); opacity: 1; pointer-events: auto; }
+
+    /* Header pannello */
+    #bm-panel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid rgba(210,28,28,0.18);
+    }
+    #bm-panel-head-title {
+      flex: 1;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      letter-spacing: 0.1em;
+      color: #e8c9c9;
+      margin: 0;
+    }
+    #bm-total-badge {
+      font-family: sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(210,28,28,0.7);
+      color: #fff;
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+
+    /* Lista libri con segnalibri */
+    #bm-book-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 8px 0;
+      /* scrollbar sottile */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(210,28,28,0.4) transparent;
+    }
+    #bm-book-list::-webkit-scrollbar       { width: 4px; }
+    #bm-book-list::-webkit-scrollbar-thumb { background: rgba(210,28,28,0.4); border-radius: 4px; }
+
+    .bm-book-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background .15s;
+      text-decoration: none;
+    }
+    .bm-book-row:hover { background: rgba(210,28,28,0.1); }
+    .bm-book-row-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: rgba(210,28,28,0.15);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bm-book-row-info { flex: 1; min-width: 0; }
+    .bm-book-row-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: #d4aaaa;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bm-book-row-count {
+      font-family: sans-serif;
+      font-size: 11px;
+      color: #7a5555;
+      margin-top: 1px;
+    }
+    .bm-book-row-arrow {
+      flex-shrink: 0;
+      color: rgba(210,28,28,0.4);
+      font-size: 13px;
+    }
+
+    /* Stato "vuoto" */
+    #bm-empty {
+      padding: 18px 16px;
+      font-size: 12px;
+      color: #6a4444;
+      text-align: center;
+      display: none;
+    }
+
+    /* Footer azioni */
+    #bm-panel-footer {
+      border-top: 1px solid rgba(210,28,28,0.18);
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .bm-btn {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 9px 13px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(210,28,28,0.28);
+      border-radius: 8px;
+      color: #c49898;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.07em;
+      cursor: pointer;
+      text-align: left;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .bm-btn:hover  { background: rgba(210,28,28,0.12); border-color: rgba(210,28,28,0.6); color: #f0cccc; }
+    .bm-btn:active { background: rgba(210,28,28,0.2); }
+    .bm-btn svg    { flex-shrink: 0; opacity: 0.7; }
+    label.bm-btn   { cursor: pointer; }
+
+    /* Feedback */
+    #bm-status {
+      font-size: 11px;
+      color: #7a5555;
+      text-align: center;
+      min-height: 14px;
+      padding: 0 4px;
+      transition: color .25s;
+    }
+    #bm-status.ok  { color: #6abf6a; }
+    #bm-status.err { color: #d06060; }
+
+    @media (max-width: 480px) {
+      #bm-bar    { bottom: 16px; right: 12px; }
+      #bm-panel  { width: calc(100vw - 24px); }
+      #bm-toggle { font-size: 13px; padding: 9px 14px; }
+    }
+  </style>
 </head>
 <body>
 
@@ -30,49 +248,107 @@
 <main>
   <div class="cards-grid">
 
-    <!-- LIBRETTI — disponibile -->
     <a href="pages/libretti.html" class="card" id="librettiCard">
       <img src="assets/icons/libretti.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg">
-        <span class="card-label">LIBRETTI</span>
-      </div>
+      <div class="card-bg"><span class="card-label">LIBRETTI</span></div>
     </a>
 
-    <!-- CARTE — non disponibile -->
     <button type="button" class="card card-folder-missing"
             onclick="showUnavailable()" aria-label="Carte – non disponibile">
       <img src="assets/icons/carte.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg">
-        <span class="card-label">CARTE</span>
-      </div>
+      <div class="card-bg"><span class="card-label">CARTE</span></div>
     </button>
 
-    <!-- SCHEDE GIOCATORI — non disponibile -->
     <button type="button" class="card card-folder-missing"
             onclick="showUnavailable()" aria-label="Schede Giocatori – non disponibile">
       <img src="assets/icons/schede_giocatori.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg">
-        <span class="card-label">SCHEDE<br>GIOCATORI</span>
-      </div>
+      <div class="card-bg"><span class="card-label">SCHEDE<br>GIOCATORI</span></div>
     </button>
 
-    <!-- SCHERMO MASTER — non disponibile -->
     <button type="button" class="card card-folder-missing"
             onclick="showUnavailable()" aria-label="Schermo Master – non disponibile">
       <img src="assets/icons/schermo_master.webp" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg">
-        <span class="card-label">SCHERMO<br>MASTER</span>
-      </div>
+      <div class="card-bg"><span class="card-label">SCHERMO<br>MASTER</span></div>
     </button>
 
   </div>
 </main>
 
-<!-- Modal "Attualmente non disponibile" -->
+<!-- ═══════════════════════════════════════════════════
+     Pannello segnalibri — fixed bottom-right
+═══════════════════════════════════════════════════ -->
+<div id="bm-bar" role="region" aria-label="Gestione segnalibri">
+
+  <!-- Pannello espandibile -->
+  <div id="bm-panel" role="dialog" aria-modal="false"
+       aria-labelledby="bm-panel-head-title" tabindex="-1">
+
+    <!-- Header -->
+    <div id="bm-panel-head">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+           stroke="#c49898" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+      <p id="bm-panel-head-title">Segnalibri</p>
+      <span id="bm-total-badge" aria-live="polite"></span>
+    </div>
+
+    <!-- Lista libri -->
+    <div id="bm-book-list" role="list" aria-label="Libri con segnalibri"></div>
+    <p id="bm-empty">Nessun segnalibro salvato.<br>Aprono un libretto per crearne uno.</p>
+
+    <!-- Footer: export / import / feedback -->
+    <div id="bm-panel-footer">
+
+      <button type="button" class="bm-btn" onclick="exportBookmarks()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Esporta tutto in JSON
+      </button>
+
+      <label class="bm-btn" role="button" tabindex="0"
+             aria-label="Importa segnalibri da file JSON"
+             onkeydown="if(event.key==='Enter'||event.key===' ')this.querySelector('input').click()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Importa da JSON
+        <input type="file" accept=".json" style="display:none" onchange="importBookmarks(event)">
+      </label>
+
+      <p id="bm-status" aria-live="polite" aria-atomic="true"></p>
+    </div>
+  </div>
+
+  <!-- Pill toggle -->
+  <button type="button" id="bm-toggle"
+          aria-expanded="false" aria-controls="bm-panel"
+          onclick="toggleBmPanel()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+         aria-hidden="true">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+    Segnalibri
+    <span id="bm-pill-badge" aria-hidden="true"></span>
+  </button>
+
+</div>
+
+<!-- Modal "non disponibile" -->
 <div class="st-modal" id="stModal"
      role="dialog" aria-modal="true" aria-label="Contenuto non disponibile"
-     tabindex="-1"
-     onclick="hideUnavailable()">
+     tabindex="-1" onclick="hideUnavailable()">
   <div class="st-modal-inner">
     <p class="st-modal-label">Attualmente<br>non disponibile</p>
     <p class="st-modal-hint">tocca ovunque per chiudere</p>
@@ -80,63 +356,269 @@
 </div>
 
 <script>
-  /* ── Modal ── */
-  function showUnavailable() {
-    const modal = document.getElementById("stModal");
-    modal.classList.add("visible");
-    modal.focus(); // FIX a11y — sposta il focus al modal quando si apre
-  }
+/* ═══════════════════════════════════════════════════════════
+   COSTANTI
+   La chiave usata dal reader è:  pdf-book-viewer:bookmarks:<bookId>
+   Il valore è un array JSON di oggetti segnalibro.
+═══════════════════════════════════════════════════════════ */
+const BM_PREFIX = "pdf-book-viewer:bookmarks:";
 
-  function hideUnavailable() {
-    document.getElementById("stModal").classList.remove("visible");
-  }
+/* ═══════════════════════════════════════════════════════════
+   LETTURA localStorage
+═══════════════════════════════════════════════════════════ */
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideUnavailable();
+/** Ritorna { bookId → Array<bookmark> } per tutti i libri che hanno segnalibri. */
+function readAllBookmarks() {
+  const result = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(BM_PREFIX)) continue;
+    const bookId = key.slice(BM_PREFIX.length);
+    try {
+      const arr = JSON.parse(localStorage.getItem(key));
+      if (Array.isArray(arr) && arr.length > 0) result[bookId] = arr;
+    } catch { /* chiave corrotta — ignorata */ }
+  }
+  return result;
+}
+
+/** Conta il totale di singoli segnalibri (non di libri). */
+function countTotal(data) {
+  return Object.values(data).reduce((s, arr) => s + arr.length, 0);
+}
+
+/** Formatta un bookId ("play-guide") in etichetta leggibile ("Play Guide"). */
+function idToLabel(id) {
+  return id.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UI — aggiornamento badge e lista
+═══════════════════════════════════════════════════════════ */
+function refreshPanel() {
+  const data  = readAllBookmarks();
+  const total = countTotal(data);
+  const books = Object.keys(data);
+
+  /* Badge sulla pill */
+  const pillBadge = document.getElementById("bm-pill-badge");
+  pillBadge.textContent = total > 0 ? String(total) : "";
+  pillBadge.classList.toggle("visible", total > 0);
+
+  /* Badge nell'header pannello */
+  const totalBadge = document.getElementById("bm-total-badge");
+  totalBadge.textContent = total > 0 ? `${total} totali` : "";
+
+  /* Mostra/nascondi stato vuoto */
+  document.getElementById("bm-empty").style.display   = books.length === 0 ? "block" : "none";
+  document.getElementById("bm-book-list").style.display = books.length > 0 ? "block" : "none";
+
+  /* Costruisce la lista libri */
+  const list = document.getElementById("bm-book-list");
+  list.innerHTML = "";
+  books.forEach(bookId => {
+    const count = data[bookId].length;
+    const href  = `pages/libretti.html?book=${encodeURIComponent(bookId)}`;
+    const row   = document.createElement("a");
+    row.className    = "bm-book-row";
+    row.href         = href;
+    row.role         = "listitem";
+    row.setAttribute("aria-label", `${idToLabel(bookId)}: ${count} segnalibr${count === 1 ? "o" : "i"}`);
+    row.innerHTML = `
+      <div class="bm-book-row-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="#c49898" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="bm-book-row-info">
+        <div class="bm-book-row-name">${idToLabel(bookId)}</div>
+        <div class="bm-book-row-count">${count} segnalibr${count === 1 ? "o" : "i"}</div>
+      </div>
+      <span class="bm-book-row-arrow" aria-hidden="true">›</span>`;
+    list.appendChild(row);
   });
+}
 
-  /* ── Libretti card availability check ──
-   *
-   * FIX CRITICO #2 — doppio tentativo per supportare sia il server Python
-   * (books.json generato dinamicamente) sia l'apertura diretta del file HTML
-   * senza backend (es. doppio clic, hosting statico).
-   *
-   * Strategia:
-   *   1. Prova il path del server Python  →  assets/contenuti/libretti/books.json
-   *   2. Se fallisce (file://, server assente, hosting statico), prova il fallback
-   *      →  assets/contenuti/libretti/books.static.json
-   *      Questo file va creato manualmente e committato nel repo.
-   *      Ha la stessa struttura di books.json ma è un file fisso su disco.
-   *
-   * Se nessuno dei due è raggiungibile, la card resta disabilitata.
-   */
-  async function fetchBooks() {
-    const PATHS = [
-      "assets/contenuti/libretti/books.json",        // generato dal server Python
-      "assets/contenuti/libretti/books.static.json", // fallback statico committato
-    ];
+/* ═══════════════════════════════════════════════════════════
+   UI — apertura/chiusura pannello
+═══════════════════════════════════════════════════════════ */
+function toggleBmPanel() {
+  const panel  = document.getElementById("bm-panel");
+  const toggle = document.getElementById("bm-toggle");
+  const isOpen = panel.classList.toggle("open");
+  toggle.setAttribute("aria-expanded", String(isOpen));
+  clearStatus();
+  if (isOpen) { refreshPanel(); panel.focus(); }
+}
 
-    for (const path of PATHS) {
+function closeBmPanel() {
+  document.getElementById("bm-panel").classList.remove("open");
+  document.getElementById("bm-toggle").setAttribute("aria-expanded", "false");
+}
+
+/* Chiude cliccando fuori */
+document.addEventListener("click", e => {
+  if (!document.getElementById("bm-bar").contains(e.target)) closeBmPanel();
+});
+
+/* ═══════════════════════════════════════════════════════════
+   Feedback testuale
+═══════════════════════════════════════════════════════════ */
+function setStatus(msg, type = "") {
+  const el = document.getElementById("bm-status");
+  el.textContent = msg;
+  el.className   = type;
+}
+function clearStatus() {
+  setStatus("", "");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORT
+   Scarica un JSON con solo le chiavi dei segnalibri
+   (esclude theme, prefs, lastOpenedPage, ecc.)
+═══════════════════════════════════════════════════════════ */
+function exportBookmarks() {
+  const data = readAllBookmarks();
+  if (!Object.keys(data).length) {
+    setStatus("Nessun segnalibro da esportare.", "err");
+    return;
+  }
+
+  /* Ricostruisce l'oggetto con le chiavi originali (con prefisso) */
+  const payload = {};
+  for (const [bookId, arr] of Object.entries(data)) {
+    payload[BM_PREFIX + bookId] = arr;
+  }
+  const total = countTotal(data);
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement("a"), {
+    href:     url,
+    download: `segnalibri-hellfire-${new Date().toISOString().slice(0, 10)}.json`,
+  });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus(`Esportati ${total} segnalibr${total === 1 ? "o" : "i"} da ${Object.keys(data).length} libr${Object.keys(data).length === 1 ? "o" : "i"}.`, "ok");
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IMPORT
+   Accetta:
+   1. Il formato nativo dell'app (chiavi con prefisso, valori array)
+   2. Un dump completo del localStorage (ignora le chiavi non-segnalibro)
+   Strategia: merge — non sovrascrive segnalibri già presenti per lo stesso libro,
+   ma aggiunge quelli nuovi in base all'id univoco del segnalibro.
+═══════════════════════════════════════════════════════════ */
+function importBookmarks(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    let raw;
+    try { raw = JSON.parse(reader.result); }
+    catch { setStatus("File non valido (JSON malformato).", "err"); return; }
+
+    if (typeof raw !== "object" || Array.isArray(raw) || raw === null) {
+      setStatus("Formato non riconosciuto.", "err");
+      return;
+    }
+
+    let importedBooks = 0;
+    let importedBm    = 0;
+
+    for (const [key, value] of Object.entries(raw)) {
+      if (!key.startsWith(BM_PREFIX)) continue;
+
+      /* Il valore può essere già un array (export nativo) o una stringa JSON */
+      let incoming;
       try {
-        const r = await fetch(path, { cache: "no-store" });
-        if (!r.ok) continue;
-        const books = await r.json();
-        if (Array.isArray(books) && books.length > 0) return books;
-      } catch {
-        // fetch fallisce (es. CORS su file://, server non attivo): prova il prossimo
+        incoming = Array.isArray(value) ? value : JSON.parse(value);
+      } catch { continue; }
+      if (!Array.isArray(incoming) || !incoming.length) continue;
+
+      /* Merge con quelli esistenti (per id univoco) */
+      const storageKey = key;
+      let existing = [];
+      try {
+        const raw2 = localStorage.getItem(storageKey);
+        existing = raw2 ? JSON.parse(raw2) : [];
+        if (!Array.isArray(existing)) existing = [];
+      } catch { existing = []; }
+
+      const existingIds = new Set(existing.map(b => b.id));
+      const newOnes     = incoming.filter(b => b.id && !existingIds.has(b.id));
+
+      if (newOnes.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify([...existing, ...newOnes]));
+        importedBooks++;
+        importedBm += newOnes.length;
       }
     }
-    return [];
-  }
 
-  async function updateLibrettiIcon() {
-    const card = document.getElementById("librettiCard");
-    if (!card) return;
-    const books = await fetchBooks();
-    card.classList.toggle("card-folder-missing", books.length === 0);
-  }
+    event.target.value = ""; // reset per reimportare lo stesso file
 
-  document.addEventListener("DOMContentLoaded", updateLibrettiIcon);
+    if (importedBm > 0) {
+      setStatus(`Importati ${importedBm} segnalibr${importedBm === 1 ? "o" : "i"} in ${importedBooks} libr${importedBooks === 1 ? "o" : "i"}.`, "ok");
+      refreshPanel();
+    } else {
+      setStatus("Nessun segnalibro nuovo trovato nel file.", "err");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Modal "non disponibile"
+═══════════════════════════════════════════════════════════ */
+function showUnavailable() {
+  const m = document.getElementById("stModal");
+  m.classList.add("visible");
+  m.focus();
+}
+function hideUnavailable() {
+  document.getElementById("stModal").classList.remove("visible");
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { hideUnavailable(); closeBmPanel(); }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   Libretti card — doppio tentativo (server Python + fallback statico)
+═══════════════════════════════════════════════════════════ */
+async function fetchBooks() {
+  const PATHS = [
+    "assets/contenuti/libretti/books.json",
+    "assets/contenuti/libretti/books.static.json",
+  ];
+  for (const path of PATHS) {
+    try {
+      const r = await fetch(path, { cache: "no-store" });
+      if (!r.ok) continue;
+      const books = await r.json();
+      if (Array.isArray(books) && books.length > 0) return books;
+    } catch { /* prossimo */ }
+  }
+  return [];
+}
+
+async function updateLibrettiIcon() {
+  const card = document.getElementById("librettiCard");
+  if (!card) return;
+  const books = await fetchBooks();
+  card.classList.toggle("card-folder-missing", books.length === 0);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateLibrettiIcon();
+  refreshPanel(); // badge iniziale
+});
 </script>
 
 </body>
