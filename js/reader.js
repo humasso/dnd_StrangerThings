@@ -1,29 +1,23 @@
 /* ============================================================
-   APP.JS — D&D Stranger Things – Hellfire Club Edition
+   READER.JS — Lettore PDF unico
+   D&D Stranger Things – Hellfire Club Edition
+
+   Richiede: common.js caricato prima.
+   Apre il libro indicato dai query param:
+     reader.html?cat=<categoria>&book=<id>
+   Senza ?cat cerca il libro in tutte le categorie (deep link
+   dal pannello segnalibri della home).
    ============================================================ */
 
-const BOOKS_MANIFEST_URL = "../assets/contenuti/libretti/books.json";
-const LIBRETTI_FOLDER_CANDIDATES = "../assets/contenuti/libretti";
-let DEFAULT_BOOK = {
-  category: "Guida di Gioco",
-  id: "play-guide",
-  pdf: "../assets/contenuti/libretti/Play_Guide.pdf",
-  title: "Play Guide",
-};
-const PDFJS_CDN_VERSION = "3.11.174";
 const MIN_QUERY_LENGTH = 2;
-/* Cache persistente delle copertine generate (evita di riscaricare i PDF) */
-const COVER_CACHE_PREFIX = "pdf-book-viewer:cover:";
 /* Margine di pre-render della virtualizzazione (in % dell'altezza viewport) */
 const RENDER_ROOT_MARGIN = "220% 0px";
 /* Tetto ai pixel fisici per canvas: limita memoria su schermi retina/zoom alto */
 const MAX_RENDER_PIXELS = 12_000_000;
-const MAX_DEVICE_PIXEL_RATIO = 2;
 
 /* ── Element references ── */
 const elements = {
   addPageBookmarkButton:  document.getElementById("addPageBookmarkButton"),
-  bookCarousel:           document.getElementById("bookCarousel"),
   bookmarkCancelButton:   document.getElementById("bookmarkCancelButton"),
   bookmarkContext:        document.getElementById("bookmarkContext"),
   bookmarkCount:          document.getElementById("bookmarkCount"),
@@ -36,12 +30,9 @@ const elements = {
   bookmarkTitleInput:     document.getElementById("bookmarkTitleInput"),
   bookmarkToggleButton:   document.getElementById("bookmarkToggleButton"),
   bookStage:              document.getElementById("bookStage"),
-  carouselDots:           document.getElementById("carouselDots"),
-  carouselNextButton:     document.getElementById("carouselNextButton"),
-  carouselPrevButton:     document.getElementById("carouselPrevButton"),
   emptyState:             document.getElementById("emptyState"),
+  emptyStateTitle:        document.getElementById("emptyStateTitle"),
   homeButton:             document.getElementById("homeButton"),
-  homeScreen:             document.getElementById("homeScreen"),
   nextButton:             document.getElementById("nextButton"),
   nextResultButton:       document.getElementById("nextResultButton"),
   pageInput:              document.getElementById("pageInput"),
@@ -50,6 +41,7 @@ const elements = {
   prevButton:             document.getElementById("prevButton"),
   prevResultButton:       document.getElementById("prevResultButton"),
   progressBar:            document.getElementById("progressBar"),
+  readerBookTitle:        document.getElementById("readerBookTitle"),
   readerLayout:           document.getElementById("readerLayout"),
   resultList:             document.getElementById("resultList"),
   searchCount:            document.getElementById("searchCount"),
@@ -75,13 +67,10 @@ const state = {
   activeBookmarkId:        null,
   activePanel:             null,
   bookmarks:               [],
-  books:                   [],
   currentBook:             null,
+  currentCategory:         null,
   currentPage:             1,
   direction:               "forward",
-  generatedCoverCache:     new Map(),
-  generatedCoverFailures:  new Set(),
-  generatedCoverTasks:     new Map(),
   continuousScale:         null,
   continuousScaleWidth:    null,
   continuousScaleZoom:     null,
@@ -102,7 +91,6 @@ const state = {
   renderId:                0,
   searchMatches:           [],
   searchPosition:          -1,
-  selectedBookIndex:       0,
   totalPages:              0,
   zoomPercent:             100,
 };
@@ -126,7 +114,6 @@ const resizeObserver = new ResizeObserver(() => {
 let renderTimer = 0;
 let searchTimer = 0;
 let searchToken = 0;
-let carouselAnimationTimer = 0;
 let progressTimer = 0;
 let scrollSyncRaf = 0;
 let isScrollTrackingBound = false;
@@ -138,33 +125,75 @@ let pageObserver = null;
 boot();
 
 function boot() {
-  if (!window.pdfjsLib) {
+  if (!setupPdfWorker()) {
     setStatus("PDF.js non disponibile");
     return;
   }
 
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_CDN_VERSION}/pdf.worker.min.js`;
-
   bindEvents();
-  showHome();
+  applyReaderLayoutClasses();
   syncSearchPanelVisibility();
   syncToolsVisibility();
   renderBookmarkList();
   syncControls();
   resizeObserver.observe(elements.bookStage);
-  loadLibrary();
+  loadReaderBook();
+}
+
+/* ============================================================
+   APERTURA LIBRO DA QUERY PARAM
+   ============================================================ */
+async function loadReaderBook() {
+  const params = new URLSearchParams(window.location.search);
+  const bookId = params.get("book");
+  const catParam = params.get("cat");
+
+  /* Senza parametri non c'è nulla da leggere: torna alla prima categoria */
+  if (!bookId && !catParam) {
+    window.location.replace(`${CATEGORIES[0].slug}.html`);
+    return;
+  }
+
+  setStatus("Caricamento in corso...");
+  const slugs = catParam ? [catParam] : CATEGORIES.map((c) => c.slug);
+
+  for (const slug of slugs) {
+    const books = await loadCategoryBooks(slug);
+    const book = bookId ? books.find((b) => b.id === bookId) : books[0];
+    if (book) {
+      state.currentBook = book;
+      state.currentCategory = slug;
+      setBackLink(slug);
+      document.title = `${book.title} – Hellfire Club`;
+      if (elements.readerBookTitle) elements.readerBookTitle.textContent = book.title;
+      await loadPdf(book.pdf, book.title);
+      return;
+    }
+  }
+
+  /* Libro non trovato: stato vuoto con via d'uscita chiara */
+  setBackLink(catParam || CATEGORIES[0].slug);
+  if (elements.emptyStateTitle) {
+    elements.emptyStateTitle.textContent = "Libretto non trovato";
+  }
+  elements.emptyState.hidden = false;
+  setStatus("Il contenuto richiesto non esiste o è stato spostato");
+  syncControls();
+}
+
+function setBackLink(slug) {
+  if (!elements.homeButton) return;
+  const meta = CATEGORIES.find((c) => c.slug === slug);
+  const label = meta ? meta.label : slug;
+  elements.homeButton.href = `${slug}.html`;
+  elements.homeButton.title = `Torna a ${label}`;
+  elements.homeButton.setAttribute("aria-label", `Torna a ${label}`);
 }
 
 /* ============================================================
    EVENTS
    ============================================================ */
 function bindEvents() {
-  elements.homeButton.addEventListener("click", showHome);
-  elements.carouselPrevButton.addEventListener("click", () => moveCarousel(-1, "prev"));
-  elements.carouselNextButton.addEventListener("click", () => moveCarousel(1, "next"));
-  bindCarouselSwipe();
-
   elements.prevButton.addEventListener("click", () => turnPage(-1));
   elements.nextButton.addEventListener("click", () => turnPage(1));
 
@@ -375,442 +404,8 @@ function finishProgress() {
 }
 
 /* ============================================================
-   LIBRARY LOADING
+   PANNELLI (ricerca / segnalibri)
    ============================================================ */
-async function loadLibrary() {
-  setStatus("Caricamento libretti...");
-
-  let manifestBooks = [];
-  try {
-    const response = await fetch(BOOKS_MANIFEST_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Manifest non disponibile: ${response.status}`);
-    manifestBooks = await response.json();
-  } catch (err) {
-    console.warn("Manifest non disponibile, provo dalla cartella Libretti", err);
-  }
-
-  const normalizedManifest = normalizeBooksOrEmpty(manifestBooks);
-  let normalizedDiscovered = [];
-
-  if (!normalizedManifest.length) {
-    const discovered = await discoverBooksFromFolders();
-    normalizedDiscovered = normalizeBooksOrEmpty(discovered);
-  }
-
-  if (normalizedManifest.length) DEFAULT_BOOK = { ...normalizedManifest[0] };
-
-  if (normalizedDiscovered.length) {
-    state.books = mergeBooks(normalizedDiscovered, normalizedManifest);
-  } else if (normalizedManifest.length) {
-    state.books = normalizedManifest;
-  } else {
-    console.warn("Uso libreria predefinita: nessun PDF trovato");
-    state.books = [DEFAULT_BOOK];
-  }
-
-  state.selectedBookIndex = clamp(state.selectedBookIndex, 0, Math.max(0, state.books.length - 1));
-  renderLibrary();
-  void preloadBookCovers();
-  setStatus("");
-}
-
-/* Radice del sito calcolata dalla posizione del manifest: i percorsi dentro
-   books.json possono essere relativi alla root ("assets/...") o alla pagina
-   ("../assets/..."); risolti da qui funzionano in entrambi i formati, sia in
-   locale (server.py) sia su GitHub Pages */
-const SITE_ROOT_URL = new URL("../../../", new URL(BOOKS_MANIFEST_URL, window.location.href));
-
-function resolveAssetPath(path) {
-  const value = typeof path === "string" ? path.trim() : "";
-  if (!value) return "";
-  try { return new URL(value, SITE_ROOT_URL).href; }
-  catch { return value; }
-}
-
-function normalizeBooksOrEmpty(books) {
-  const list = Array.isArray(books) ? books : [];
-  return list
-    .map((book, i) => ({
-      category: book.category || "Libretto",
-      cover:    resolveAssetPath(book.cover),
-      id:       book.id       || createBookId(book.pdf, i),
-      pdf:      resolveAssetPath(book.pdf),
-      title:    book.title    || `Libretto ${i + 1}`,
-    }))
-    .filter((b) => typeof b.pdf === "string" && b.pdf.trim());
-}
-
-function mergeBooks(folderBooks, manifestBooks) {
-  if (!manifestBooks.length) return folderBooks;
-  const byPdf = new Map(manifestBooks.map((b) => [normalizePath(b.pdf), b]));
-  return folderBooks.map((book, i) => {
-    const m = byPdf.get(normalizePath(book.pdf));
-    if (!m) return book;
-    return {
-      category: getStringOrFallback(m.category, book.category),
-      cover:    getStringOrFallback(m.cover,     book.cover),
-      id:       getStringOrFallback(m.id,        book.id || createBookId(book.pdf, i)),
-      pdf:      book.pdf,
-      title:    getStringOrFallback(m.title,     book.title),
-    };
-  });
-}
-
-async function discoverBooksFromFolders() {
-  const candidates = Array.isArray(LIBRETTI_FOLDER_CANDIDATES)
-    ? LIBRETTI_FOLDER_CANDIDATES
-    : [LIBRETTI_FOLDER_CANDIDATES];
-  for (const folder of candidates) {
-    const books = await discoverBooksInFolder(folder);
-    if (books.length) return books;
-  }
-  return [];
-}
-
-async function discoverBooksInFolder(folderPath) {
-  const folder = normalizePath(folderPath);
-  if (!folder) return [];
-  let response;
-  try {
-    response = await fetch(`${folder}/`, { cache: "no-store" });
-  } catch { return []; }
-  if (!response.ok) return [];
-
-  const html = await response.text();
-  const doc  = new DOMParser().parseFromString(html, "text/html");
-  const base = new URL(`${folder}/`, window.location.href);
-  const names = new Set();
-
-  doc.querySelectorAll("a[href]").forEach((a) => {
-    const href = a.getAttribute("href");
-    if (!href) return;
-    try {
-      const url = new URL(href, base);
-      const name = decodeURIComponent(url.pathname.split("/").pop() || "");
-      if (/\.pdf$/i.test(name)) names.add(name);
-    } catch { /* skip */ }
-  });
-
-  const sorted = [...names].sort((a, b) => a.localeCompare(b, "it", { sensitivity: "base" }));
-  const books = await Promise.all(sorted.map(async (fileName, i) => {
-    const stem = fileName.replace(/\.pdf$/i, "");
-    const meta = await loadBookMetadata(folder, stem);
-    const pdf  = `${folder}/${fileName}`;
-    return {
-      category: getStringOrFallback(meta.category, "Libretto"),
-      cover:    getStringOrFallback(meta.cover,    ""),
-      id:       getStringOrFallback(meta.id,       createBookId(pdf, i)),
-      pdf,
-      title:    getStringOrFallback(meta.title,    filenameToTitle(stem)),
-    };
-  }));
-
-  return normalizeBooksOrEmpty(books);
-}
-
-async function loadBookMetadata(folder, stem) {
-  try {
-    const r = await fetch(`${folder}/${stem}.json`, { cache: "no-store" });
-    if (!r.ok) return {};
-    const data = await r.json();
-    return data && typeof data === "object" ? data : {};
-  } catch { return {}; }
-}
-
-/* ============================================================
-   CAROUSEL / LIBRARY RENDER
-   ============================================================ */
-function renderLibrary() {
-  const fragment = document.createDocumentFragment();
-  const dots     = document.createDocumentFragment();
-  const total    = state.books.length;
-
-  state.books.forEach((book, index) => {
-    const offset    = getCarouselOffset(index, state.selectedBookIndex, total);
-    const absOffset = Math.abs(offset);
-
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "book-card";
-    card.style.setProperty("--offset",     String(offset));
-    card.style.setProperty("--abs-offset", String(absOffset));
-    card.style.zIndex = String(30 - absOffset);
-    card.dataset.index = String(index);
-    card.setAttribute("aria-label", `Apri ${book.title}`);
-
-    if (index === state.selectedBookIndex) {
-      card.setAttribute("aria-current", "true");
-    } else {
-      card.removeAttribute("aria-current");
-    }
-
-    card.addEventListener("click", () => {
-      if (index !== state.selectedBookIndex) {
-        selectBook(index);
-      } else {
-        openBook(index);
-      }
-    });
-
-    /* Cover */
-    const cover = document.createElement("div");
-    cover.className = "book-cover";
-
-    if (book.cover) {
-      const img = document.createElement("img");
-      img.alt = "";
-      img.src = book.cover;
-      img.loading = "lazy";
-      cover.append(img);
-    } else if (hasGeneratedCover(book)) {
-      cover.append(createCoverImage(getGeneratedCover(book)));
-    } else if (hasGeneratedCoverFailure(book)) {
-      cover.append(createCoverFallback(book));
-    } else {
-      const skeleton = document.createElement("span");
-      skeleton.className = "cover-skeleton";
-      cover.append(skeleton);
-      void renderBookCover(book, cover);
-    }
-
-    const category = document.createElement("span");
-    category.className = "book-category";
-    category.textContent = book.category;
-
-    const title = document.createElement("span");
-    title.className = "book-title";
-    title.textContent = book.title;
-
-    /* CTA sulla card selezionata — span decorativo: la card è già un <button>
-       (un button annidato sarebbe HTML invalido) e gestisce il click */
-    const cta = document.createElement("span");
-    cta.className = "open-book-cta";
-    cta.textContent = "Apri";
-    cta.setAttribute("aria-hidden", "true");
-
-    card.append(cover, category, title, cta);
-    fragment.append(card);
-
-    /* Dot */
-    const dot = document.createElement("button");
-    dot.type = "button";
-    dot.className = "carousel-dot";
-    dot.classList.toggle("is-active", index === state.selectedBookIndex);
-    dot.title = book.title;
-    dot.setAttribute("aria-label", book.title);
-    dot.addEventListener("click", () => selectBook(index));
-    dots.append(dot);
-  });
-
-  elements.bookCarousel.replaceChildren(fragment);
-  elements.carouselDots.replaceChildren(dots);
-  elements.carouselPrevButton.disabled = total <= 1;
-  elements.carouselNextButton.disabled = total <= 1;
-}
-
-function getCarouselOffset(index, selectedIndex, total) {
-  if (total <= 1) return 0;
-  const raw = index - selectedIndex;
-  const wrapped = raw > total / 2 ? raw - total : raw < -total / 2 ? raw + total : raw;
-  return clamp(wrapped, -2, 2);
-}
-
-function selectBook(index, preferredDirection = null) {
-  if (!state.books.length) return;
-  const total    = state.books.length;
-  const prev     = state.selectedBookIndex;
-  const next     = (index + total) % total;
-  if (next === prev) return;
-  const direction = preferredDirection || inferCarouselDirection(prev, next, total);
-  state.selectedBookIndex = next;
-  renderLibrary();
-  animateCarouselTransition(direction);
-}
-
-function moveCarousel(delta, preferredDirection = null) {
-  selectBook(state.selectedBookIndex + delta, preferredDirection || (delta < 0 ? "prev" : "next"));
-}
-
-function inferCarouselDirection(prev, next, total) {
-  if (total <= 1) return "next";
-  const fwd = (next - prev + total) % total;
-  const bwd = (prev - next + total) % total;
-  return fwd <= bwd ? "next" : "prev";
-}
-
-function animateCarouselTransition(direction) {
-  clearTimeout(carouselAnimationTimer);
-  const cls = direction === "prev" ? "is-switch-prev" : "is-switch-next";
-  elements.bookCarousel.classList.remove("is-switch-next", "is-switch-prev");
-  void elements.bookCarousel.offsetWidth; // force reflow
-  elements.bookCarousel.classList.add(cls);
-  carouselAnimationTimer = window.setTimeout(() => {
-    elements.bookCarousel.classList.remove("is-switch-next", "is-switch-prev");
-  }, 400);
-}
-
-function bindCarouselSwipe() {
-  let startX = 0, startY = 0;
-  elements.bookCarousel.addEventListener("pointerdown", (e) => { startX = e.clientX; startY = e.clientY; });
-  elements.bookCarousel.addEventListener("pointerup", (e) => {
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
-      moveCarousel(dx < 0 ? 1 : -1, dx < 0 ? "next" : "prev");
-    }
-  });
-}
-
-/* ============================================================
-   BOOK COVERS
-   ============================================================ */
-function getCoverCacheKey(book)     { return book.id || book.pdf; }
-function getGeneratedCover(book)    { return state.generatedCoverCache.get(getCoverCacheKey(book)) || ""; }
-function hasGeneratedCover(book)    { return Boolean(getGeneratedCover(book)); }
-function hasGeneratedCoverFailure(book) { return state.generatedCoverFailures.has(getCoverCacheKey(book)); }
-
-function loadStoredCover(key) {
-  try { return localStorage.getItem(COVER_CACHE_PREFIX + key) || ""; }
-  catch { return ""; }
-}
-
-function storeCover(key, url) {
-  try { localStorage.setItem(COVER_CACHE_PREFIX + key, url); }
-  catch { /* quota piena: la copertina resta solo in memoria */ }
-}
-
-function createCoverImage(src) {
-  const img = document.createElement("img");
-  img.alt = "";
-  img.src = src;
-  return img;
-}
-
-async function preloadBookCovers() {
-  const todo = state.books.filter(
-    (b) => !b.cover && !hasGeneratedCover(b) && !hasGeneratedCoverFailure(b)
-  );
-  if (!todo.length) return;
-  /* Max 2 PDF alla volta: evita di scaricare tutta la libreria in parallelo */
-  const queue = [...todo];
-  const workers = Array.from({ length: Math.min(2, queue.length) }, async () => {
-    while (queue.length) {
-      const book = queue.shift();
-      await ensureGeneratedCover(book);
-    }
-  });
-  await Promise.all(workers);
-  if (!elements.homeScreen.hidden) renderLibrary();
-}
-
-async function ensureGeneratedCover(book) {
-  if (book.cover) return "";
-  const key = getCoverCacheKey(book);
-  const cached = state.generatedCoverCache.get(key);
-  if (cached) return cached;
-  const stored = loadStoredCover(key);
-  if (stored) {
-    state.generatedCoverCache.set(key, stored);
-    return stored;
-  }
-  if (state.generatedCoverFailures.has(key)) return "";
-  const pending = state.generatedCoverTasks.get(key);
-  if (pending) return pending;
-
-  const task = createGeneratedCover(book)
-    .then((url) => {
-      if (url) {
-        state.generatedCoverCache.set(key, url);
-        storeCover(key, url);
-        return url;
-      }
-      state.generatedCoverFailures.add(key);
-      return "";
-    })
-    .catch((err) => {
-      console.warn(`Copertina non disponibile per ${book.title}`, err);
-      state.generatedCoverFailures.add(key);
-      return "";
-    })
-    .finally(() => state.generatedCoverTasks.delete(key));
-
-  state.generatedCoverTasks.set(key, task);
-  return task;
-}
-
-async function createGeneratedCover(book) {
-  /* disableAutoFetch: con i range request scarica solo i byte della pagina 1 */
-  const pdf = await pdfjsLib.getDocument({ url: book.pdf, disableAutoFetch: true }).promise;
-  try {
-    const page     = await pdf.getPage(1);
-    const baseVp   = page.getViewport({ scale: 1 });
-    const scale    = 260 / baseVp.width;
-    const viewport = page.getViewport({ scale });
-    const dpr      = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
-    const canvas   = document.createElement("canvas");
-    canvas.width   = Math.floor(viewport.width  * dpr);
-    canvas.height  = Math.floor(viewport.height * dpr);
-    await page.render({
-      canvasContext: canvas.getContext("2d", { alpha: false }),
-      transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
-      viewport,
-    }).promise;
-    /* JPEG: 5-10x più leggero del PNG, entra nella quota localStorage */
-    return canvas.toDataURL("image/jpeg", 0.82);
-  } finally {
-    void pdf.destroy();
-  }
-}
-
-async function renderBookCover(book, coverEl) {
-  try {
-    const url = await ensureGeneratedCover(book);
-    if (!coverEl.isConnected) return;
-    coverEl.replaceChildren(url ? createCoverImage(url) : createCoverFallback(book));
-  } catch {
-    if (coverEl.isConnected) coverEl.replaceChildren(createCoverFallback(book));
-  }
-}
-
-function createCoverFallback(book) {
-  const div = document.createElement("div");
-  div.className = "cover-fallback";
-  div.textContent = book.title;
-  return div;
-}
-
-/* ============================================================
-   NAVIGATION: OPEN / CLOSE
-   ============================================================ */
-async function openBook(index) {
-  const book = state.books[index];
-  if (!book) return;
-  state.selectedBookIndex = index;
-  state.currentBook = book;
-  showReader();
-  await loadPdf(book.pdf, book.title);
-}
-
-function showHome() {
-  hideSelectionMenu();
-  state.activePanel = null;
-  state.activeBookmarkId = null;
-  document.body.classList.add("is-home-view");
-  elements.homeScreen.hidden  = false;
-  elements.readerLayout.hidden = true;
-  elements.homeButton.hidden  = true;
-  syncSearchPanelVisibility();
-}
-
-function showReader() {
-  document.body.classList.remove("is-home-view");
-  elements.homeScreen.hidden  = true;
-  elements.readerLayout.hidden = false;
-  elements.homeButton.hidden  = false;
-  applyReaderLayoutClasses();
-  syncSearchPanelVisibility();
-}
-
 function togglePanel(panelName) {
   if (panelName === "search" && state.activePanel === "bookmarks" && !elements.bookmarkToggleButton) {
     state.activePanel = null;
@@ -1807,8 +1402,8 @@ function saveBookmarks() {
 }
 
 function getBookmarkStorageKey() {
-  const key = state.currentBook?.id || state.currentBook?.pdf || DEFAULT_BOOK.id;
-  return `pdf-book-viewer:bookmarks:${key}`;
+  const key = state.currentBook?.id || state.currentBook?.pdf || "libro";
+  return `${BOOKMARK_STORAGE_PREFIX}${key}`;
 }
 
 function isValidBookmark(b) {
@@ -2167,38 +1762,4 @@ function setStatus(message) {
   elements.statusText.textContent = message === "Pronto" ? "" : message;
 }
 
-/* ============================================================
-   UTILITIES
-   ============================================================ */
-function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
-function roundRatio(v)       { return Math.round(v * 10000) / 10000; }
-
-function truncateText(v, max) {
-  const s = v.replace(/\s+/g, " ").trim();
-  return s.length > max ? `${s.slice(0, max - 3)}...` : s;
-}
-
-function createId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function createBookId(pdfPath, index) {
-  return (pdfPath || `book-${index + 1}`)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "") || `book-${index + 1}`;
-}
-
-function getStringOrFallback(v, fallback) {
-  return typeof v === "string" && v.trim() ? v.trim() : fallback;
-}
-
-function normalizePath(path) {
-  return (path || "").trim().replace(/^\/+|\/+$/g, "");
-}
-
-function filenameToTitle(stem) {
-  const s = (stem || "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!s) return "Libretto";
-  return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
+/* Le utility generiche (clamp, truncateText, createId, ...) vivono in common.js */

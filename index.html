@@ -254,28 +254,28 @@
 <main>
   <div class="cards-grid">
 
-    <a href="pages/libretti.html" class="card" id="librettiCard">
+    <a href="pages/libretti.html" class="card" data-category="libretti" aria-label="Libretti">
       <img src="assets/icons/libretti.png" alt="" class="card-icon" aria-hidden="true">
       <div class="card-bg"><span class="card-label">LIBRETTI</span></div>
     </a>
 
-    <button type="button" class="card card-folder-missing"
-            onclick="showUnavailable()" aria-label="Carte – non disponibile">
+    <a href="pages/carte.html" class="card card-folder-missing"
+       data-category="carte" aria-label="Carte">
       <img src="assets/icons/carte.png" alt="" class="card-icon" aria-hidden="true">
       <div class="card-bg"><span class="card-label">CARTE</span></div>
-    </button>
+    </a>
 
-    <button type="button" class="card card-folder-missing"
-            onclick="showUnavailable()" aria-label="Schede Giocatori – non disponibile">
+    <a href="pages/schede.html" class="card card-folder-missing"
+       data-category="schede" aria-label="Schede Giocatori">
       <img src="assets/icons/schede_giocatori.png" alt="" class="card-icon" aria-hidden="true">
       <div class="card-bg"><span class="card-label">SCHEDE<br>GIOCATORI</span></div>
-    </button>
+    </a>
 
-    <button type="button" class="card card-folder-missing"
-            onclick="showUnavailable()" aria-label="Schermo Master – non disponibile">
+    <a href="pages/schermo.html" class="card card-folder-missing"
+       data-category="schermo" aria-label="Schermo Master">
       <img src="assets/icons/schermo_master.webp" alt="" class="card-icon" aria-hidden="true">
       <div class="card-bg"><span class="card-label">SCHERMO<br>MASTER</span></div>
-    </button>
+    </a>
 
   </div>
 </main>
@@ -351,16 +351,6 @@
 
 </div>
 
-<!-- Modal "non disponibile" -->
-<div class="st-modal" id="stModal"
-     role="dialog" aria-modal="true" aria-label="Contenuto non disponibile"
-     tabindex="-1" onclick="hideUnavailable()">
-  <div class="st-modal-inner">
-    <p class="st-modal-label">Attualmente<br>non disponibile</p>
-    <p class="st-modal-hint">tocca ovunque per chiudere</p>
-  </div>
-</div>
-
 <script>
 /* ═══════════════════════════════════════════════════════════
    COSTANTI
@@ -424,7 +414,7 @@ function refreshPanel() {
   list.innerHTML = "";
   books.forEach(bookId => {
     const count = data[bookId].length;
-    const href  = `pages/libretti.html?book=${encodeURIComponent(bookId)}`;
+    const href  = `pages/reader.html?book=${encodeURIComponent(bookId)}`;
     const row   = document.createElement("a");
     row.className    = "bm-book-row";
     row.href         = href;
@@ -580,28 +570,18 @@ function importBookmarks(event) {
   reader.readAsText(file);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Modal "non disponibile"
-═══════════════════════════════════════════════════════════ */
-function showUnavailable() {
-  const m = document.getElementById("stModal");
-  m.classList.add("visible");
-  m.focus();
-}
-function hideUnavailable() {
-  document.getElementById("stModal").classList.remove("visible");
-}
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { hideUnavailable(); closeBmPanel(); }
+  if (e.key === "Escape") closeBmPanel();
 });
 
 /* ═══════════════════════════════════════════════════════════
-   Libretti card — doppio tentativo (server Python + fallback statico)
+   Card categorie — grigia le categorie senza contenuti
+   (doppio tentativo: books.json dal server, books.static.json su Pages)
 ═══════════════════════════════════════════════════════════ */
-async function fetchBooks() {
+async function fetchCategoryBooks(slug) {
   const PATHS = [
-    "assets/contenuti/libretti/books.json",
-    "assets/contenuti/libretti/books.static.json",
+    `assets/contenuti/${slug}/books.json`,
+    `assets/contenuti/${slug}/books.static.json`,
   ];
   for (const path of PATHS) {
     try {
@@ -614,15 +594,16 @@ async function fetchBooks() {
   return [];
 }
 
-async function updateLibrettiIcon() {
-  const card = document.getElementById("librettiCard");
-  if (!card) return;
-  const books = await fetchBooks();
-  card.classList.toggle("card-folder-missing", books.length === 0);
+async function updateCategoryCards() {
+  const cards = document.querySelectorAll(".card[data-category]");
+  await Promise.all([...cards].map(async (card) => {
+    const books = await fetchCategoryBooks(card.dataset.category);
+    card.classList.toggle("card-folder-missing", books.length === 0);
+  }));
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  updateLibrettiIcon();
+  updateCategoryCards();
   refreshPanel(); // badge iniziale
 });
 </script>

@@ -2,10 +2,65 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0;url=index.html">
-    <title>Reindirizzamento…</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#060404">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Schede Giocatori – Hellfire Club</title>
+    <link rel="icon" href="../assets/icons/schede_giocatori.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../reader.css">
+    <link rel="stylesheet" href="../mobile.css">
 </head>
-<body>
-    <script>location.replace("index.html");</script>
+<body class="page-app page-category" data-category="schede">
+
+    <header>
+        <a class="icon-button home-button" href="../index.html"
+            title="Torna alla home" aria-label="Torna alla home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+        </a>
+        <a href="../index.html" class="header-center" aria-label="Torna alla home">
+            <img src="../assets/header/Titolo.png" class="header-img" alt="Hellfire Club">
+        </a>
+    </header>
+
+    <div class="reader-app">
+        <main class="home-screen" id="homeScreen">
+            <section class="hellfire-frame" aria-label="Libreria PDF">
+                <h1 id="categoryTitle">Schede Giocatori</h1>
+
+                <div class="carousel-shell">
+                    <button class="carousel-nav carousel-prev" type="button"
+                        id="carouselPrevButton"
+                        title="Precedente" aria-label="Precedente">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+                    </button>
+
+                    <div class="book-carousel" id="bookCarousel" aria-live="polite"></div>
+
+                    <button class="carousel-nav carousel-next" type="button"
+                        id="carouselNextButton"
+                        title="Successivo" aria-label="Successivo">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                    </button>
+                </div>
+
+                <div class="carousel-dots" id="carouselDots" aria-label="Selezione"></div>
+
+                <!-- Stato vuoto: categoria senza contenuti -->
+                <div class="category-empty" id="categoryEmpty" hidden>
+                    <p class="st-modal-label">Attualmente<br>non disponibile</p>
+                    <a class="empty-back-link" href="../index.html">Torna alla home</a>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/library.js"></script>
 </body>
 </html>

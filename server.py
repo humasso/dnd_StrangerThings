@@ -3,13 +3,14 @@
 Server locale – Hellfire Club
 
 Serve i file statici del sito e genera books.json automaticamente
-scansionando la cartella assets/contenuti/libretti/. Ogni PDF nella cartella
-appare nel carosello senza toccare nessun file di configurazione.
+scansionando OGNI sottocartella di assets/contenuti/ (libretti, carte,
+schede, schermo, ...). Ogni PDF appare nella rispettiva categoria senza
+toccare nessun file di configurazione.
 
 Uso:
   python3 server.py                     # porta default 8765, localhost
   python3 server.py --port 9000         # porta custom
-  python3 server.py --export-static     # genera books.static.json e termina (fix #11)
+  python3 server.py --export-static     # genera books.static.json per ogni categoria e termina
 """
 
 import argparse           
@@ -22,8 +23,15 @@ from pathlib import Path
 DEFAULT_PORT = 8765
 DEFAULT_HOST = "127.0.0.1"   
 
-LIBRETTI_DIR  = Path("assets/contenuti/libretti")
-STATIC_JSON   = LIBRETTI_DIR / "books.static.json"  
+CONTENUTI_DIR = Path("assets/contenuti")
+
+# Nome cartella → etichetta di default per la voce "category" dei libri
+CATEGORY_LABELS = {
+    "libretti": "Libretto",
+    "carte":    "Carte",
+    "schede":   "Scheda",
+    "schermo":  "Schermo Master",
+}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -38,23 +46,31 @@ def _validated_str(value: object, fallback: str) -> str:
     return value if isinstance(value, str) and value.strip() else fallback
 
 
-def scan_libretti() -> list:
+def category_dirs() -> list:
+    """Sottocartelle di assets/contenuti/ (una per categoria)."""
+    if not CONTENUTI_DIR.exists():
+        return []
+    return sorted(d for d in CONTENUTI_DIR.iterdir() if d.is_dir())
+
+
+def scan_category(cat_dir: Path) -> list:
     """
-    Scansiona LIBRETTI_DIR e restituisce la lista di libri per books.json.
+    Scansiona una cartella categoria e restituisce la lista per books.json.
     Per ogni PDF può esistere un .json con lo stesso nome base che sovrascrive
     titolo e categoria:
         { "title": "Titolo personalizzato", "category": "Play Guide" }
     """
     books = []
-    if not LIBRETTI_DIR.exists():
+    if not cat_dir.exists():
         return books
 
-    for pdf in sorted(LIBRETTI_DIR.glob("*.pdf")):
+    default_label = CATEGORY_LABELS.get(cat_dir.name, filename_to_title(cat_dir.name))
+
+    for pdf in sorted(cat_dir.glob("*.pdf")):
         stem      = pdf.stem
         book_id   = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")
-        meta_file = LIBRETTI_DIR / f"{stem}.json"
+        meta_file = cat_dir / f"{stem}.json"
 
-        
         meta: dict = {}
         if meta_file.exists():
             try:
@@ -64,26 +80,29 @@ def scan_libretti() -> list:
             except OSError as exc:
                 print(f"[WARN] {meta_file.name}: impossibile leggere ({exc})", file=sys.stderr)
 
-        
         books.append({
             "id":       _validated_str(meta.get("id"),       book_id),
             "title":    _validated_str(meta.get("title"),    filename_to_title(stem)),
-            "category": _validated_str(meta.get("category"), "Libretto"),
-            "pdf":      f"assets/contenuti/libretti/{pdf.name}",
+            "category": _validated_str(meta.get("category"), default_label),
+            "pdf":      f"assets/contenuti/{cat_dir.name}/{pdf.name}",
         })
 
     return books
 
 
 def export_static() -> None:
-    """fix #11 — scrive books.static.json per uso offline/hosting statico."""
-    LIBRETTI_DIR.mkdir(parents=True, exist_ok=True)
-    books = scan_libretti()
-    STATIC_JSON.write_text(
-        json.dumps(books, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    print(f"Scritto {STATIC_JSON} ({len(books)} libri).")
+    """Scrive books.static.json in ogni categoria per hosting statico (GitHub Pages)."""
+    CONTENUTI_DIR.mkdir(parents=True, exist_ok=True)
+    for cat_dir in category_dirs():
+        books = scan_category(cat_dir)
+        if not books:
+            continue
+        target = cat_dir / "books.static.json"
+        target.write_text(
+            json.dumps(books, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"Scritto {target} ({len(books)} libri).")
 
 
 # ── HTTP Handler ────────────────────────────────────────────────────────────
@@ -95,11 +114,15 @@ SECURITY_HEADERS = {
 }
 
 
+BOOKS_JSON_RE = re.compile(r"^/assets/contenuti/([\w-]+)/books\.json$")
+
+
 class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/assets/contenuti/libretti/books.json":
-            self._serve_books_json()
+        match = BOOKS_JSON_RE.match(self.path.split("?")[0])
+        if match:
+            self._serve_books_json(match.group(1))
         else:
             super().do_GET()
 
@@ -108,8 +131,9 @@ class Handler(SimpleHTTPRequestHandler):
         for k, v in SECURITY_HEADERS.items():
             self.send_header(k, v)
 
-    def _serve_books_json(self):
-        payload = json.dumps(scan_libretti(), ensure_ascii=False, indent=2).encode("utf-8")
+    def _serve_books_json(self, category: str):
+        books = scan_category(CONTENUTI_DIR / category)
+        payload = json.dumps(books, ensure_ascii=False, indent=2).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type",   "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
@@ -157,11 +181,12 @@ if __name__ == "__main__":
         export_static()
         sys.exit(0)
 
-    pdf_count = len(list(LIBRETTI_DIR.glob("*.pdf"))) if LIBRETTI_DIR.exists() else 0
     print(f"Hellfire Club — server su http://{args.host}:{args.port}")
-    print(f"Cartella libretti : {LIBRETTI_DIR.resolve()}")
-    print(f"PDF trovati       : {pdf_count}")
-    print(f"Header sicurezza  : {', '.join(SECURITY_HEADERS)}")
+    print(f"Cartella contenuti : {CONTENUTI_DIR.resolve()}")
+    for cat_dir in category_dirs():
+        pdf_count = len(list(cat_dir.glob("*.pdf")))
+        print(f"  - {cat_dir.name}: {pdf_count} PDF")
+    print(f"Header sicurezza   : {', '.join(SECURITY_HEADERS)}")
     print("Premi Ctrl+C per fermare.\n")
 
     # ThreadingHTTPServer: i download dei PDF non bloccano le altre richieste

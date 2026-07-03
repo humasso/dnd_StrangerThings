@@ -2,15 +2,25 @@
 
 Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in stile Stranger Things.
 
-## Funzionalità
+## Struttura
 
-Inserisci il pdf da leggere in `contenuti`.
+- **Home** (`index.html`): card delle categorie + gestione segnalibri (export/import JSON).
+- **Pagine categoria** (`pages/libretti.html`, `carte.html`, `schede.html`, `schermo.html`):
+  contengono solo la lista dei PDF della propria categoria. Una categoria senza contenuti
+  mostra lo stato "Attualmente non disponibile".
+- **Lettore unico** (`pages/reader.html`): un solo file per la lettura di qualsiasi PDF,
+  aperto con `reader.html?cat=<categoria>&book=<id>`.
+- **Moduli JS** (`js/`): `common.js` (manifest, percorsi, copertine), `library.js`
+  (pagine categoria), `reader.js` (lettore), `mobile.js` (UI mobile del lettore).
+
+## Funzionalità
 
 ### Tools
 
 - Ricerca full-text nel PDF (con avanzamento e annullamento automatico se cambi query)
-- Zoom fluido con feedback istantaneo (slider, `Ctrl`+rotella, pinch, tasti `+`/`-`)
-- Due modalità di visualizzazione su PC: **scorrimento continuo** e **vista libro** (spread a due pagine affiancate) — si passa dall'una all'altra col pulsante nella barra strumenti
+- Zoom fluido ancorato al puntatore (slider, `Ctrl`+rotella, pinch, tasti `+`/`-`)
+- Due modalità di visualizzazione su PC: **scorrimento continuo** e **vista libro**
+  (spread a due pagine affiancate)
 - Segnalibri personalizzati su pagina o testo evidenziato
 - Export/import segnalibri in JSON dalla home
 - Indicatore di pagina e barra di avanzamento lettura
@@ -18,41 +28,42 @@ Inserisci il pdf da leggere in `contenuti`.
 
 ### Mobile
 
-- **Swipe navigation**: Scorri per cambiare pagina
+- **Swipe navigation**: scorri per cambiare pagina
 - Bottom bar con pagina precedente/successiva e salto diretto a una pagina
-- Touch-friendly controls
-- Toolbar sempre accessibile
+- Touch-friendly controls, toolbar sempre accessibile
 
 ### Prestazioni
 
-- **Rendering virtualizzato**: vengono renderizzate solo le pagine vicine al viewport (IntersectionObserver); le pagine lontane vengono rilasciate. Memoria e tempi di zoom restano costanti anche con PDF di centinaia di pagine.
-- **Zoom istantaneo**: durante lo zoom il bitmap esistente viene stirato via CSS e il re-render nitido riguarda solo le pagine visibili.
-- **Cap alla risoluzione dei canvas** (DPR max 2 + tetto pixel) per non esaurire la memoria su schermi retina.
-- **Copertine in cache** (localStorage): generate una sola volta dalla prima pagina del PDF, poi riusate senza riscaricare nulla.
+- **Rendering virtualizzato**: solo le pagine vicine al viewport vengono renderizzate;
+  memoria e tempi di zoom costanti anche con PDF di centinaia di pagine.
+- **Zoom istantaneo** con re-render nitido delle sole pagine visibili.
+- **Copertine in cache** (localStorage), generate una sola volta dalla prima pagina del PDF.
 
-## Libreria PDF
+## Aggiungere PDF
 
-La home legge i libretti da `books.json`. Per aggiungere un PDF:
-
-1. Metti il file in `assets/contenuti/`.
-2. Aggiungi una voce a `books.json` con `id`, `title`, `category` e `pdf`.
-3. Se vuoi usare una cover personalizzata, aggiungi anche `cover`; altrimenti il sito genera la copertina dalla prima pagina del PDF.
-
-Esempio:
+1. Copia il PDF in `assets/contenuti/<categoria>/` (es. `libretti`, `carte`, `schede`, `schermo`).
+2. (Opzionale) crea `<nome-file>.json` accanto al PDF per personalizzare i metadati:
 
 ```json
-
 {
-
-"id": "nome-libretto",
-
-"title": "Nome Libretto",
-
-"category": "Play Guide",
-
-"pdf": "assets/contenuti/nome-libretto.pdf"
-
+  "id": "nome-libretto",
+  "title": "Nome Libretto",
+  "category": "Play Guide"
 }
+```
+
+3. Rigenera il manifest statico per GitHub Pages e committa:
+
+```bash
+python3 server.py --export-static
+```
+
+In locale non serve: `python3 server.py` genera i manifest al volo.
+
+## Sviluppo locale
+
+```bash
+python3 server.py            # http://127.0.0.1:8765
 ```
 
 ## 📋 TODO

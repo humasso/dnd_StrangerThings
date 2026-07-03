@@ -33,16 +33,16 @@
 [hidden] { display: none !important; }
 
 /* ── Body overrides for reader page ── */
-body.page-libretti {
+body.page-app {
   height: 100vh;
   overflow: hidden;
 }
 
-body.page-libretti header {
+body.page-app header {
   justify-content: center;
 }
 
-body.page-libretti main {
+body.page-app main {
   padding: 0;
   align-items: stretch;
   justify-content: normal;
@@ -90,7 +90,7 @@ body.page-libretti main {
   padding: clamp(12px, 2.4vw, 30px);
 }
 
-body.page-libretti main::before {
+body.page-app main::before {
   display: none;
 }
 
@@ -255,7 +255,26 @@ body.page-libretti main::before {
 .book-card:focus-visible {
   opacity: 1;
   filter: brightness(1) saturate(1.08);
-  outline: 0;
+}
+
+/* Focus visibile da tastiera: anello rosso coerente col tema
+   (non rimuovere mai l'outline senza un sostituto visibile) */
+.book-card:focus-visible,
+.icon-button:focus-visible,
+.carousel-nav:focus-visible,
+.carousel-dot:focus-visible,
+.text-button:focus-visible,
+.bookmark-main:focus-visible,
+.result-item:focus-visible,
+.home-button:focus-visible,
+.empty-back-link:focus-visible {
+  outline: 2px solid var(--reader-accent-strong);
+  outline-offset: 2px;
+}
+
+/* I bottoni-icona possono essere anche link (es. back): niente sottolineatura */
+a.icon-button {
+  text-decoration: none;
 }
 
 /* Book cover thumbnail */
@@ -463,6 +482,62 @@ body.page-libretti main::before {
 
 .open-book-cta:hover {
   background: rgba(215, 25, 32, 0.28);
+}
+
+/* ── Titolo del libro aperto (header del reader) ──
+   Orientamento per l'utente: dice sempre COSA stai leggendo */
+.reader-book-title {
+  position: absolute;
+  left: calc(clamp(14px, 4vw, 52px) + 56px);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 26vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--reader-muted);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .reader-book-title { display: none; }
+}
+
+/* ── Stato vuoto di una categoria senza contenuti ── */
+.category-empty {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 30px;
+  min-height: 40vh;
+  text-align: center;
+}
+
+.empty-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid rgba(215, 25, 32, 0.4);
+  border-radius: 8px;
+  background: var(--reader-accent-soft);
+  color: var(--reader-ink);
+  text-decoration: none;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.empty-back-link:hover {
+  background: rgba(215, 25, 32, 0.28);
+  border-color: rgba(215, 25, 32, 0.6);
 }
 
 /* ── Back button (header) ── */
