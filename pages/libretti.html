@@ -168,6 +168,9 @@
                 <div class="statusbar" aria-live="polite" aria-atomic="true">
                     <span id="statusText"></span>
                 </div>
+
+                <!-- Indicatore pagina (modalità scorrimento continuo) -->
+                <div class="page-indicator" id="pageIndicator" hidden aria-live="polite"></div>
             </section>
 
             <!-- Right column: Search / Bookmarks panel -->
@@ -289,7 +292,29 @@
 
     <!-- ── Mobile: bottom toolbar fissa ── -->
     <!-- Visibile solo su mobile (display:none su desktop via CSS) -->
-    <nav class="mob-bottom-bar" id="mobBottomBar" hidden aria-label="Controlli lettore"></nav>
+    <nav class="mob-bottom-bar" id="mobBottomBar" hidden aria-label="Controlli lettore">
+        <div class="mob-nav-group">
+            <button class="icon-button" type="button"
+                id="mobPrevButton" title="Pagina precedente" aria-label="Pagina precedente">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 6 9 12l6 6"/>
+                </svg>
+            </button>
+
+            <div class="mob-page-indicator">
+                <input id="mobPageInput" type="number" min="1" value="1"
+                    inputmode="numeric" aria-label="Numero pagina" />
+                <span class="mob-total" id="mobTotalPages">/ 0</span>
+            </div>
+
+            <button class="icon-button" type="button"
+                id="mobNextButton" title="Pagina successiva" aria-label="Pagina successiva">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 6 6 6-6 6"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="../app.js"></script>

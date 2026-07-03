@@ -161,6 +161,35 @@ body.page-libretti main::before {
     0 0 16px rgba(255, 49, 56, 0.65);
 }
 
+/* Titolo in stile "Stranger Things": lettere scavate con contorno rosso
+   al neon e flicker occasionale, come l'insegna della sigla */
+@supports (-webkit-text-stroke: 1px red) {
+  .hellfire-frame h1 {
+    color: rgba(24, 3, 5, 0.55);
+    -webkit-text-stroke: 1.6px var(--reader-accent-strong);
+    letter-spacing: 0.18em;
+    text-shadow:
+      0 0 14px rgba(255, 49, 56, 0.55),
+      0 0 38px rgba(215, 25, 32, 0.35),
+      0 0 80px rgba(140, 8, 12, 0.28);
+    animation: st-neon-flicker 8s linear infinite;
+  }
+}
+
+@keyframes st-neon-flicker {
+  0%, 100% { opacity: 1; }
+  3%       { opacity: 0.72; }
+  4%       { opacity: 1; }
+  38%      { opacity: 1; }
+  39%      { opacity: 0.55; }
+  40%      { opacity: 0.9; }
+  41%      { opacity: 0.62; }
+  42%      { opacity: 1; }
+  77%      { opacity: 1; }
+  78%      { opacity: 0.8; }
+  79%      { opacity: 1; }
+}
+
 /* ── Carousel ── */
 .carousel-shell {
   position: relative;
@@ -249,6 +278,23 @@ body.page-libretti main::before {
     0 28px 52px rgba(0,0,0,0.65),
     0 0 0 2px rgba(255, 49, 56, 0.72),
     0 0 40px rgba(255, 49, 56, 0.3);
+  /* Respiro rosso: la copertina selezionata "pulsa" come le luci di Joyce */
+  animation: cover-glow-pulse 3.4s ease-in-out infinite;
+}
+
+@keyframes cover-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 28px 52px rgba(0,0,0,0.65),
+      0 0 0 2px rgba(255, 49, 56, 0.72),
+      0 0 40px rgba(255, 49, 56, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 28px 52px rgba(0,0,0,0.65),
+      0 0 0 2px rgba(255, 49, 56, 0.92),
+      0 0 62px rgba(255, 49, 56, 0.5);
+  }
 }
 
 .book-cover img,
@@ -730,7 +776,15 @@ input:disabled {
   padding: clamp(14px, 2.5vw, 28px);
   border-top: 1px solid rgba(255, 244, 230, 0.06);
   touch-action: pan-y pinch-zoom;
-  scroll-behavior: smooth;
+  /* NIENTE scroll-behavior:smooth qui: renderebbe animata anche la
+     compensazione dello zoom e WebKit ri-applicherebbe il target smooth
+     dopo il resize del contenuto, facendo "scappare" la vista.
+     Lo smooth è richiesto esplicitamente da stageScrollTo quando serve. */
+  scroll-behavior: auto;
+  /* L'ancoraggio dello scroll è gestito da app.js (captureScrollAnchor):
+     quello nativo del browser combatterebbe con il nostro durante zoom
+     e re-render virtualizzato, facendo saltare la vista */
+  overflow-anchor: none;
   /* Custom scrollbar */
   scrollbar-width: thin;
   scrollbar-color: rgba(215, 25, 32, 0.35) transparent;
@@ -769,11 +823,27 @@ input:disabled {
 .loading-page {
   display: grid;
   place-items: center;
+  align-content: center;
   width: 320px;
   height: 440px;
-  color: var(--reader-muted);
+  color: #8a7468;
   font-weight: 800;
   gap: 16px;
+  animation: loading-flicker 2.6s ease-in-out infinite;
+}
+
+/* Dentro una shell (placeholder di pagina virtualizzata) riempie tutto */
+.page-shell .loading-page {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes loading-flicker {
+  0%, 100% { opacity: 1; }
+  48%      { opacity: 0.55; }
+  52%      { opacity: 0.85; }
+  56%      { opacity: 0.6; }
+  60%      { opacity: 1; }
 }
 
 .loading-page::before {
@@ -908,13 +978,15 @@ input:disabled {
   border-radius: inherit;
 }
 
-/* Page turn animations */
+/* Page turn animations — piega 3D con ombra, come sfogliare un manuale */
 .book-stage.is-turning-forward .page-shell {
-  animation: turnForward 230ms ease both;
+  animation: turnForward 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  transform-origin: left center;
 }
 
 .book-stage.is-turning-back .page-shell {
-  animation: turnBack 230ms ease both;
+  animation: turnBack 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  transform-origin: right center;
 }
 
 .pdf-canvas {
@@ -1567,13 +1639,31 @@ body.search-has-text .bookmarks-section {
 
 /* ── Animations ── */
 @keyframes turnForward {
-  from { opacity: 0.15; transform: translateX(24px) rotateY(-5deg); }
-  to   { opacity: 1;    transform: translateX(0)    rotateY(0); }
+  from {
+    opacity: 0.1;
+    transform: perspective(1600px) translateX(38px) rotateY(-10deg);
+    filter: brightness(0.78);
+  }
+  60% { opacity: 1; }
+  to {
+    opacity: 1;
+    transform: perspective(1600px) translateX(0) rotateY(0);
+    filter: brightness(1);
+  }
 }
 
 @keyframes turnBack {
-  from { opacity: 0.15; transform: translateX(-24px) rotateY(5deg); }
-  to   { opacity: 1;    transform: translateX(0)      rotateY(0); }
+  from {
+    opacity: 0.1;
+    transform: perspective(1600px) translateX(-38px) rotateY(10deg);
+    filter: brightness(0.78);
+  }
+  60% { opacity: 1; }
+  to {
+    opacity: 1;
+    transform: perspective(1600px) translateX(0) rotateY(0);
+    filter: brightness(1);
+  }
 }
 
 @keyframes carouselCardSlideNext {

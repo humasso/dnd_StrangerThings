@@ -16,7 +16,7 @@ import argparse
 import json
 import re
 import sys
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 DEFAULT_PORT = 8765
@@ -164,4 +164,5 @@ if __name__ == "__main__":
     print(f"Header sicurezza  : {', '.join(SECURITY_HEADERS)}")
     print("Premi Ctrl+C per fermare.\n")
 
-    HTTPServer((args.host, args.port), Handler).serve_forever()
+    # ThreadingHTTPServer: i download dei PDF non bloccano le altre richieste
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()

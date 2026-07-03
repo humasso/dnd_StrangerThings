@@ -12,6 +12,13 @@ let DEFAULT_BOOK = {
 };
 const PDFJS_CDN_VERSION = "3.11.174";
 const MIN_QUERY_LENGTH = 2;
+/* Cache persistente delle copertine generate (evita di riscaricare i PDF) */
+const COVER_CACHE_PREFIX = "pdf-book-viewer:cover:";
+/* Margine di pre-render della virtualizzazione (in % dell'altezza viewport) */
+const RENDER_ROOT_MARGIN = "220% 0px";
+/* Tetto ai pixel fisici per canvas: limita memoria su schermi retina/zoom alto */
+const MAX_RENDER_PIXELS = 12_000_000;
+const MAX_DEVICE_PIXEL_RATIO = 2;
 
 /* ── Element references ── */
 const elements = {
@@ -78,10 +85,14 @@ const state = {
   continuousScale:         null,
   continuousScaleWidth:    null,
   continuousScaleZoom:     null,
+  baseViewport:            null,
   isContinuous:            true,
   isSpread:                false,
   isToolsVisible:          true,
+  pageRenderPromises:      new Map(),
+  pageRenderTasks:         new Map(),
   pageTextCache:           new Map(),
+  visiblePages:            new Set(),
   pdf:                     null,
   pendingBookmarkDraft:    null,
   pendingBookmarkScrollId: null,
@@ -114,10 +125,12 @@ const resizeObserver = new ResizeObserver(() => {
 
 let renderTimer = 0;
 let searchTimer = 0;
+let searchToken = 0;
 let carouselAnimationTimer = 0;
 let progressTimer = 0;
 let scrollSyncRaf = 0;
 let isScrollTrackingBound = false;
+let pageObserver = null;
 
 /* ============================================================
    BOOT
@@ -169,13 +182,21 @@ function bindEvents() {
   elements.zoomOutButton.addEventListener("click", () => changeZoom(-10));
   elements.zoomInButton.addEventListener("click", () => changeZoom(10));
 
+  /* Toggle vista: scorrimento continuo <-> vista libro (spread, solo desktop) */
   elements.spreadButton.addEventListener("click", () => {
-    state.isSpread = !state.isSpread;
-    elements.spreadButton.classList.toggle("is-active", state.isSpread);
-    // If spread just enabled and current page is odd > 1, snap to even page
-    if (isSpreadActive() && state.currentPage > 1 && state.currentPage % 2 !== 0) {
-      state.currentPage -= 1;
+    if (isContinuousMode()) {
+      state.isContinuous = false;
+      state.isSpread = !media.matches;
+      if (isSpreadActive() && state.currentPage > 1 && state.currentPage % 2 !== 0) {
+        state.currentPage -= 1;
+      }
+    } else {
+      state.isContinuous = true;
+      state.isSpread = false;
+      state.pendingScrollPage = state.currentPage;
     }
+    teardownContinuousRendering();
+    applyReaderLayoutClasses();
     scheduleRender();
     syncControls();
   });
@@ -240,6 +261,8 @@ function bindEvents() {
     if (e.target instanceof HTMLInputElement) return;
     if (e.key === "ArrowLeft")  turnPage(-1);
     if (e.key === "ArrowRight") turnPage(1);
+    if (e.key === "+" || e.key === "=") changeZoom(10);
+    if (e.key === "-") changeZoom(-10);
   });
 
   media.addEventListener("change", () => scheduleRender());
@@ -253,7 +276,8 @@ function bindZoomGestures() {
   elements.bookStage.addEventListener("wheel", (e) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    changeZoom(e.deltaY < 0 ? 10 : -10);
+    /* Zoom ancorato al puntatore: il punto sotto il cursore resta fermo */
+    changeZoom(e.deltaY < 0 ? 10 : -10, { x: e.clientX, y: e.clientY });
   }, { passive: false });
 
   let lastTouchDistance = 0;
@@ -285,7 +309,12 @@ function bindZoomGestures() {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (lastTouchDistance === 0) { lastTouchDistance = dist; return; }
       if (Math.abs(dist - lastTouchDistance) > 3) {
-        changeZoom(dist > lastTouchDistance ? 5 : -5);
+        /* Ancora lo zoom al punto medio tra le due dita */
+        const midpoint = {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        };
+        changeZoom(dist > lastTouchDistance ? 5 : -5, midpoint);
         lastTouchDistance = dist;
       }
     }
@@ -308,11 +337,14 @@ function bindZoomGestures() {
     swipeTracking = false;
   });
 
+  /* Safari/WebKit: il pinch sul trackpad arriva GIÀ come evento wheel con
+     ctrlKey=true (gestito sopra). I GestureEvent qui vanno solo bloccati
+     per impedire lo zoom nativo della pagina — se zoomassero anche loro,
+     ogni pinch verrebbe applicato due volte e la vista andrebbe alla deriva. */
   if (typeof GestureEvent !== "undefined") {
-    elements.bookStage.addEventListener("gesturechange", (e) => {
-      e.preventDefault();
-      changeZoom(e.scale > 1 ? 5 : -5);
-    }, { passive: false });
+    ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+      elements.bookStage.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+    });
   }
 }
 
@@ -322,6 +354,9 @@ function bindZoomGestures() {
 function showProgress() {
   if (!elements.progressBar) return;
   clearTimeout(progressTimer);
+  /* Rimuovi eventuali override inline lasciati da updateReadingProgress */
+  elements.progressBar.style.opacity = "";
+  elements.progressBar.style.transition = "";
   elements.progressBar.style.width = "0%";
   elements.progressBar.classList.add("is-visible");
   // Animate to ~85% while loading
@@ -379,14 +414,27 @@ async function loadLibrary() {
   setStatus("");
 }
 
+/* Radice del sito calcolata dalla posizione del manifest: i percorsi dentro
+   books.json possono essere relativi alla root ("assets/...") o alla pagina
+   ("../assets/..."); risolti da qui funzionano in entrambi i formati, sia in
+   locale (server.py) sia su GitHub Pages */
+const SITE_ROOT_URL = new URL("../../../", new URL(BOOKS_MANIFEST_URL, window.location.href));
+
+function resolveAssetPath(path) {
+  const value = typeof path === "string" ? path.trim() : "";
+  if (!value) return "";
+  try { return new URL(value, SITE_ROOT_URL).href; }
+  catch { return value; }
+}
+
 function normalizeBooksOrEmpty(books) {
   const list = Array.isArray(books) ? books : [];
   return list
     .map((book, i) => ({
       category: book.category || "Libretto",
-      cover:    book.cover    || "",
+      cover:    resolveAssetPath(book.cover),
       id:       book.id       || createBookId(book.pdf, i),
-      pdf:      book.pdf,
+      pdf:      resolveAssetPath(book.pdf),
       title:    book.title    || `Libretto ${i + 1}`,
     }))
     .filter((b) => typeof b.pdf === "string" && b.pdf.trim());
@@ -533,18 +581,14 @@ function renderLibrary() {
     title.className = "book-title";
     title.textContent = book.title;
 
-    /* CTA button on selected card */
-    const cta = document.createElement("button");
-    cta.type = "button";
+    /* CTA sulla card selezionata — span decorativo: la card è già un <button>
+       (un button annidato sarebbe HTML invalido) e gestisce il click */
+    const cta = document.createElement("span");
     cta.className = "open-book-cta";
     cta.textContent = "Apri";
-    cta.setAttribute("aria-label", `Leggi ${book.title}`);
-    cta.addEventListener("click", (e) => {
-      e.stopPropagation();
-      openBook(index);
-    });
+    cta.setAttribute("aria-hidden", "true");
 
-    card.append(cover, category, title);
+    card.append(cover, category, title, cta);
     fragment.append(card);
 
     /* Dot */
@@ -625,6 +669,16 @@ function getGeneratedCover(book)    { return state.generatedCoverCache.get(getCo
 function hasGeneratedCover(book)    { return Boolean(getGeneratedCover(book)); }
 function hasGeneratedCoverFailure(book) { return state.generatedCoverFailures.has(getCoverCacheKey(book)); }
 
+function loadStoredCover(key) {
+  try { return localStorage.getItem(COVER_CACHE_PREFIX + key) || ""; }
+  catch { return ""; }
+}
+
+function storeCover(key, url) {
+  try { localStorage.setItem(COVER_CACHE_PREFIX + key, url); }
+  catch { /* quota piena: la copertina resta solo in memoria */ }
+}
+
 function createCoverImage(src) {
   const img = document.createElement("img");
   img.alt = "";
@@ -637,7 +691,15 @@ async function preloadBookCovers() {
     (b) => !b.cover && !hasGeneratedCover(b) && !hasGeneratedCoverFailure(b)
   );
   if (!todo.length) return;
-  await Promise.all(todo.map((b) => ensureGeneratedCover(b)));
+  /* Max 2 PDF alla volta: evita di scaricare tutta la libreria in parallelo */
+  const queue = [...todo];
+  const workers = Array.from({ length: Math.min(2, queue.length) }, async () => {
+    while (queue.length) {
+      const book = queue.shift();
+      await ensureGeneratedCover(book);
+    }
+  });
+  await Promise.all(workers);
   if (!elements.homeScreen.hidden) renderLibrary();
 }
 
@@ -646,13 +708,22 @@ async function ensureGeneratedCover(book) {
   const key = getCoverCacheKey(book);
   const cached = state.generatedCoverCache.get(key);
   if (cached) return cached;
+  const stored = loadStoredCover(key);
+  if (stored) {
+    state.generatedCoverCache.set(key, stored);
+    return stored;
+  }
   if (state.generatedCoverFailures.has(key)) return "";
   const pending = state.generatedCoverTasks.get(key);
   if (pending) return pending;
 
   const task = createGeneratedCover(book)
     .then((url) => {
-      if (url) { state.generatedCoverCache.set(key, url); return url; }
+      if (url) {
+        state.generatedCoverCache.set(key, url);
+        storeCover(key, url);
+        return url;
+      }
       state.generatedCoverFailures.add(key);
       return "";
     })
@@ -668,21 +739,27 @@ async function ensureGeneratedCover(book) {
 }
 
 async function createGeneratedCover(book) {
-  const pdf      = await pdfjsLib.getDocument(book.pdf).promise;
-  const page     = await pdf.getPage(1);
-  const baseVp   = page.getViewport({ scale: 1 });
-  const scale    = 260 / baseVp.width;
-  const viewport = page.getViewport({ scale });
-  const dpr      = window.devicePixelRatio || 1;
-  const canvas   = document.createElement("canvas");
-  canvas.width   = Math.floor(viewport.width  * dpr);
-  canvas.height  = Math.floor(viewport.height * dpr);
-  await page.render({
-    canvasContext: canvas.getContext("2d", { alpha: false }),
-    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
-    viewport,
-  }).promise;
-  return canvas.toDataURL("image/png");
+  /* disableAutoFetch: con i range request scarica solo i byte della pagina 1 */
+  const pdf = await pdfjsLib.getDocument({ url: book.pdf, disableAutoFetch: true }).promise;
+  try {
+    const page     = await pdf.getPage(1);
+    const baseVp   = page.getViewport({ scale: 1 });
+    const scale    = 260 / baseVp.width;
+    const viewport = page.getViewport({ scale });
+    const dpr      = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
+    const canvas   = document.createElement("canvas");
+    canvas.width   = Math.floor(viewport.width  * dpr);
+    canvas.height  = Math.floor(viewport.height * dpr);
+    await page.render({
+      canvasContext: canvas.getContext("2d", { alpha: false }),
+      transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+      viewport,
+    }).promise;
+    /* JPEG: 5-10x più leggero del PNG, entra nella quota localStorage */
+    return canvas.toDataURL("image/jpeg", 0.82);
+  } finally {
+    void pdf.destroy();
+  }
 }
 
 async function renderBookCover(book, coverEl) {
@@ -824,8 +901,13 @@ function syncToolsVisibility() {
 async function loadPdf(source, title) {
   showProgress();
   setStatus("Caricamento PDF...");
+  teardownContinuousRendering();
   state.pdf = null;
   state.totalPages = 0;
+  state.baseViewport = null;
+  state.continuousScale = null;
+  state.continuousScaleWidth = null;
+  state.continuousScaleZoom = null;
   elements.pageSpread.replaceChildren();
 
   let pdf;
@@ -851,6 +933,14 @@ async function loadPdf(source, title) {
   state.searchPosition = -1;
   state.bookmarks      = loadBookmarks().filter((b) => b.page <= state.totalPages);
 
+  /* Dimensioni base (pagina 1 a scala 1): servono per calcolare la scala
+     in modo sincrono e dimensionare tutte le shell senza toccare il PDF */
+  try {
+    const firstPage = await pdf.getPage(1);
+    const vp = firstPage.getViewport({ scale: 1 });
+    state.baseViewport = { width: vp.width, height: vp.height };
+  } catch { /* fallback gestito in getContinuousScale */ }
+
   elements.totalPages.textContent    = `/ ${state.totalPages}`;
   elements.pageInput.max             = String(state.totalPages);
   elements.searchInput.value         = "";
@@ -861,7 +951,11 @@ async function loadPdf(source, title) {
   renderBookmarkList();
   setStatus(`${state.totalPages} pagine`);
   syncControls();
-  await renderAllPages();
+  if (isContinuousMode()) {
+    await renderAllPages();
+  } else {
+    await renderSpread();
+  }
   finishProgress();
 }
 
@@ -894,8 +988,20 @@ function goToPage(pageNumber) {
 
   if (isContinuousMode()) {
     state.currentPage = clamped;
-    state.pendingScrollPage = clamped;
     syncControls();
+    const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${clamped}"]`);
+    if (shell) {
+      /* Le shell esistono già: scrolla subito (il render arriva via observer) */
+      if (state.pendingBookmarkScrollId) {
+        scrollToPendingBookmark();
+      } else {
+        scrollToPage(clamped, true);
+      }
+      state.pendingScrollPage = null;
+      updateReadingProgress();
+    } else {
+      state.pendingScrollPage = clamped;
+    }
     return;
   }
 
@@ -933,15 +1039,36 @@ function applyReaderLayoutClasses() {
   elements.readerLayout.classList.toggle("is-zoomed", state.zoomPercent > 100);
 }
 
-function setZoomPercent(next, { skipRender = false } = {}) {
-  if (state.pdf && isContinuousMode()) {
-    state.pendingScrollAnchor = captureScrollAnchor();
+function setZoomPercent(next, { skipRender = false, anchorPoint = null } = {}) {
+  const min = Number(elements.zoomRange.min) || 75;
+  const max = Number(elements.zoomRange.max) || 220;
+  next = clamp(next, min, max);
+  const changed = next !== state.zoomPercent;
+
+  if (state.pdf && isContinuousMode() && changed) {
+    state.pendingScrollAnchor = captureScrollAnchor(anchorPoint);
     state.isZooming = true;
   }
   state.zoomPercent = next;
   elements.zoomRange.value = String(next);
   elements.zoomValue.textContent = `${next}%`;
   applyReaderLayoutClasses();
+
+  /* Feedback istantaneo: ridimensiona subito le shell — i canvas esistenti
+     (width:100%) vengono stirati dal browser, il re-render nitido arriva
+     poco dopo via scheduleRender solo per le pagine visibili */
+  if (state.pdf && isContinuousMode() && changed && state.baseViewport) {
+    const scale = getContinuousScale(elements.bookStage.clientWidth);
+    const shells = Array.from(elements.pageSpread.children);
+    if (shells.length) {
+      sizeContinuousShells(scale, shells);
+      if (state.pendingScrollAnchor) {
+        scrollToAnchor(state.pendingScrollAnchor);
+        state.pendingScrollAnchor = null;
+      }
+    }
+  }
+
   if (!skipRender) scheduleRender();
 }
 
@@ -954,39 +1081,66 @@ function scheduleRender() {
     } else {
       renderSpread();
     }
-  }, 90);
+  }, 120);
 }
 
+/* ── Rendering virtualizzato ──
+   Le shell di tutte le pagine esistono sempre (div leggeri, dimensionati),
+   ma canvas + textLayer vengono creati solo per le pagine vicine al viewport
+   (IntersectionObserver) e rilasciati quando escono dalla zona di pre-render.
+   Memoria e tempi di zoom restano costanti anche su PDF di centinaia di pagine. */
 async function renderAllPages() {
   if (!state.pdf) { syncControls(); return; }
 
   const renderId = ++state.renderId;
-  const pages = Array.from({ length: state.totalPages }, (_, i) => i + 1);
-  const shells = ensureAllPageShells(pages);
-  const stageWidth = elements.bookStage.clientWidth;
-
   elements.emptyState.hidden = true;
   elements.bookStage.classList.remove("is-turning-forward", "is-turning-back");
   updateReadingProgress();
 
   try {
-    const scale = await getContinuousScale(pages[0], stageWidth);
-    await sizeContinuousShells(scale, pages[0], shells);
+    if (!state.baseViewport) {
+      const page = await state.pdf.getPage(1);
+      if (renderId !== state.renderId) return;
+      const vp = page.getViewport({ scale: 1 });
+      state.baseViewport = { width: vp.width, height: vp.height };
+    }
+
+    /* Resize esterno (finestra, pannello laterale, rotazione): la scala sta
+       per cambiare senza un'ancora già catturata dallo zoom — catturala ORA,
+       con le shell ancora alle dimensioni vecchie, o il punto di lettura
+       si perde (lo scrollTop resterebbe uguale su un contenuto più grande) */
+    const stageWidth = elements.bookStage.clientWidth;
+    if (
+      Number.isFinite(state.continuousScale)
+      && state.continuousScaleWidth !== null
+      && state.continuousScaleWidth !== stageWidth
+      && !state.pendingScrollAnchor
+      && !Number.isFinite(state.pendingScrollPage)
+    ) {
+      state.pendingScrollAnchor = captureScrollAnchor();
+    }
+
+    const scale  = getContinuousScale(stageWidth);
+    const pages  = Array.from({ length: state.totalPages }, (_, i) => i + 1);
+    const shells = ensureAllPageShells(pages);
+    sizeContinuousShells(scale, shells);
+    observeContinuousShells(shells);
+
     if (state.pendingScrollAnchor) {
       scrollToAnchor(state.pendingScrollAnchor);
       state.pendingScrollAnchor = null;
     }
-    for (let i = 0; i < pages.length; i += 1) {
-      if (renderId !== state.renderId) return;
-      await renderPage(pages[i], shells[i], scale, renderId);
+    if (Number.isFinite(state.pendingScrollPage)) {
+      scrollToPage(state.pendingScrollPage, false);
+      state.pendingScrollPage = null;
     }
+
+    await renderNearbyPages(scale, renderId);
+
     if (renderId === state.renderId) {
+      refreshHighlightLayers();
       applySearchHighlights();
       scrollToPendingBookmark();
-      if (Number.isFinite(state.pendingScrollPage)) {
-        scrollToPage(state.pendingScrollPage, true);
-        state.pendingScrollPage = null;
-      }
       state.isZooming = false;
       updateCurrentPageFromScroll();
       setStatus("Pronto");
@@ -1018,7 +1172,7 @@ function ensureAllPageShells(pageNumbers) {
   return shells;
 }
 
-async function getContinuousScale(pageNumber, stageWidth) {
+function getContinuousScale(stageWidth) {
   const width = Number.isFinite(stageWidth) && stageWidth > 0
     ? stageWidth
     : elements.bookStage.clientWidth;
@@ -1029,10 +1183,10 @@ async function getContinuousScale(pageNumber, stageWidth) {
   ) {
     return state.continuousScale;
   }
-  const page     = await state.pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1 });
+  const base = state.baseViewport;
+  if (!base) return state.continuousScale || 1;
   const availW   = Math.max(width - getStagePaddingX() - 6, 280);
-  const fitScale = availW / viewport.width;
+  const fitScale = availW / base.width;
   const nextScale = clamp(fitScale * (state.zoomPercent / 100), 0.24, 4);
   state.continuousScale = nextScale;
   state.continuousScaleWidth = width;
@@ -1040,14 +1194,140 @@ async function getContinuousScale(pageNumber, stageWidth) {
   return nextScale;
 }
 
-async function sizeContinuousShells(scale, pageNumber, shells) {
-  const page = await state.pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale });
-  const width = `${viewport.width}px`;
-  const height = `${viewport.height}px`;
+function sizeContinuousShells(scale, shells) {
+  const base = state.baseViewport;
+  if (!base) return;
   shells.forEach((shell) => {
+    /* Usa le dimensioni reali della pagina se già renderizzata almeno una volta */
+    const baseW = Number.parseFloat(shell.dataset.baseW) || base.width;
+    const baseH = Number.parseFloat(shell.dataset.baseH) || base.height;
+    const width  = `${Math.round(baseW * scale * 100) / 100}px`;
+    const height = `${Math.round(baseH * scale * 100) / 100}px`;
     if (shell.style.width !== width) shell.style.width = width;
     if (shell.style.height !== height) shell.style.height = height;
+  });
+}
+
+function observeContinuousShells(shells) {
+  if (pageObserver) pageObserver.disconnect();
+  state.visiblePages.clear();
+  pageObserver = new IntersectionObserver(handleShellIntersection, {
+    root: elements.bookStage,
+    rootMargin: RENDER_ROOT_MARGIN,
+    threshold: 0,
+  });
+  shells.forEach((shell) => pageObserver.observe(shell));
+}
+
+function handleShellIntersection(entries) {
+  if (!state.pdf || !isContinuousMode()) return;
+  /* Usa la scala in cache (quella con cui sono dimensionate le shell):
+     ricalcolarla qui con la larghezza "live" renderizzerebbe pagine di
+     dimensione diversa dalle shell durante un resize della finestra */
+  const scale = Number.isFinite(state.continuousScale)
+    ? state.continuousScale
+    : getContinuousScale(elements.bookStage.clientWidth);
+  entries.forEach((entry) => {
+    const shell = entry.target;
+    const pn = Number.parseInt(shell.dataset.page, 10);
+    if (!Number.isFinite(pn)) return;
+    if (entry.isIntersecting) {
+      state.visiblePages.add(pn);
+      void ensurePageRendered(pn, shell, scale, state.renderId);
+    } else {
+      state.visiblePages.delete(pn);
+      releasePage(pn, shell);
+    }
+  });
+}
+
+/* Renderizza subito le pagine dentro la finestra viewport ± 1.5 schermate
+   (l'observer copre gli scroll successivi) */
+async function renderNearbyPages(scale, renderId) {
+  const stage  = elements.bookStage;
+  const margin = stage.clientHeight * 1.5;
+  const top    = stage.scrollTop - margin;
+  const bottom = stage.scrollTop + stage.clientHeight + margin;
+  const jobs   = [];
+
+  for (const shell of elements.pageSpread.children) {
+    const pn = Number.parseInt(shell.dataset.page, 10);
+    if (!Number.isFinite(pn)) continue;
+    const shellTop = shell.offsetTop;
+    const shellBottom = shellTop + shell.offsetHeight;
+    if (shellBottom >= top && shellTop <= bottom) {
+      jobs.push(ensurePageRendered(pn, shell, scale, renderId));
+    }
+  }
+
+  await Promise.all(jobs);
+}
+
+function ensurePageRendered(pn, shell, scale, renderId) {
+  if (shell.dataset.renderedScale === String(scale)) return Promise.resolve();
+  /* Il renderId fa parte della chiave: un batch nuovo non deve riusare
+     le promise di un batch superato (che si scarterebbero da sole) */
+  const key = `${pn}@${scale}#${renderId}`;
+  const pending = state.pageRenderPromises.get(pn);
+  if (pending?.key === key) return pending.promise;
+
+  cancelPageRender(pn);
+  const promise = renderPage(pn, shell, scale, renderId)
+    .catch((err) => {
+      if (err?.name !== "RenderingCancelledException") {
+        console.warn(`Rendering pagina ${pn} non riuscito`, err);
+      }
+    })
+    .finally(() => {
+      if (state.pageRenderPromises.get(pn)?.promise === promise) {
+        state.pageRenderPromises.delete(pn);
+      }
+    });
+  state.pageRenderPromises.set(pn, { key, promise });
+  return promise;
+}
+
+function cancelPageRender(pn) {
+  const task = state.pageRenderTasks.get(pn);
+  if (task) {
+    try { task.cancel(); } catch { /* già completato */ }
+    state.pageRenderTasks.delete(pn);
+  }
+  state.pageRenderPromises.delete(pn);
+}
+
+/* Libera canvas e layer di una pagina uscita dalla zona di pre-render */
+function releasePage(pn, shell) {
+  cancelPageRender(pn);
+  if (!shell.dataset.renderedScale) return;
+  delete shell.dataset.renderedScale;
+  const loading = document.createElement("div");
+  loading.className = "loading-page";
+  loading.textContent = `Pagina ${pn}`;
+  shell.replaceChildren(loading);
+}
+
+function teardownContinuousRendering() {
+  if (pageObserver) {
+    pageObserver.disconnect();
+    pageObserver = null;
+  }
+  state.visiblePages.clear();
+  state.pageRenderTasks.forEach((task) => {
+    try { task.cancel(); } catch { /* già completato */ }
+  });
+  state.pageRenderTasks.clear();
+  state.pageRenderPromises.clear();
+}
+
+/* Riapplica i layer segnalibri sulle pagine già renderizzate
+   (dopo aggiunta/rimozione di un segnalibro non serve un re-render completo) */
+function refreshHighlightLayers() {
+  elements.pageSpread.querySelectorAll(".page-shell").forEach((shell) => {
+    const layer = shell.querySelector(".highlightLayer");
+    if (!layer) return;
+    const pn = Number.parseInt(shell.dataset.page, 10);
+    if (Number.isFinite(pn)) renderBookmarkHighlights(pn, layer);
   });
 }
 
@@ -1101,43 +1381,89 @@ function getMostVisiblePage(shells, stageRect, fallbackPage) {
   return current;
 }
 
+/* Scroll programmato dello stage.
+   ATTENZIONE: .book-stage ha scroll-behavior:smooth nel CSS, quindi
+   behavior:"auto" verrebbe comunque animato. Durante lo zoom serve uno
+   scroll DAVVERO istantaneo, altrimenti ogni step cattura l'ancora a metà
+   animazione e la posizione deriva ("lo zoom va da un'altra parte"). */
+function stageScrollTo(left, top, smooth) {
+  const stage = elements.bookStage;
+  if (smooth) {
+    stage.scrollTo({ left, top, behavior: "smooth" });
+    return;
+  }
+  /* Assegnazione diretta: sincrona in tutti gli engine. scrollTo(options)
+     in WebKit può applicarsi al frame dopo — durante gli step rapidi di
+     zoom la cattura successiva leggerebbe uno scroll vecchio con le
+     dimensioni nuove e l'errore si accumulerebbe in modo esponenziale */
+  stage.scrollLeft = left;
+  stage.scrollTop = top;
+}
+
 function scrollToPage(pageNumber, smooth) {
   const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${pageNumber}"]`);
   if (!shell) return;
-  shell.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  stageScrollTo(elements.bookStage.scrollLeft, Math.max(0, shell.offsetTop - 12), smooth);
 }
 
-function captureScrollAnchor() {
+/* Cattura il punto da mantenere fermo durante lo zoom.
+   point (clientX/clientY) = cursore o centro del pinch; senza punto usa il
+   centro dello stage. Salva pagina + posizione relativa nella pagina +
+   posizione nel viewport, così il ripristino rimette lo stesso punto del
+   documento sotto lo stesso punto dello schermo. */
+function captureScrollAnchor(point = null) {
+  const stage = elements.bookStage;
+  const stageRect = stage.getBoundingClientRect();
+  if (!stageRect.width || !stageRect.height) return null;
+
+  const viewX = point ? clamp(point.x - stageRect.left, 0, stageRect.width) : stageRect.width / 2;
+  const viewY = point ? clamp(point.y - stageRect.top, 0, stageRect.height) : stageRect.height / 2;
+
+  /* Lavora in coordinate CONTENUTO (offsetTop/scrollTop): sono sincrone con
+     i nostri resize e scroll, mentre getBoundingClientRect può riflettere un
+     repaint in ritardo durante gli step rapidi di zoom */
+  const contentY = stage.scrollTop + viewY;
+  const contentX = stage.scrollLeft + viewX;
+
   const shells = elements.pageSpread.querySelectorAll(".page-shell");
-  const stageRect = elements.bookStage.getBoundingClientRect();
-  const page = getMostVisiblePage(shells, stageRect, state.currentPage);
-  const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${page}"]`);
-  if (!shell) return null;
-  const shellRect = shell.getBoundingClientRect();
-  if (!shellRect.width || !shellRect.height) return null;
-  const centerX = stageRect.left + stageRect.width / 2;
-  const centerY = stageRect.top + stageRect.height / 2;
-  const xRatio = clamp((centerX - shellRect.left) / shellRect.width, 0, 1);
-  const yRatio = clamp((centerY - shellRect.top) / shellRect.height, 0, 1);
-  return { page, xRatio, yRatio };
+  let shell = null;
+  let nearest = null;
+  let nearestDist = Infinity;
+  for (const candidate of shells) {
+    const top = candidate.offsetTop;
+    const height = candidate.offsetHeight;
+    if (!height) continue;
+    if (contentY >= top && contentY <= top + height) { shell = candidate; break; }
+    const dist = contentY < top ? top - contentY : contentY - (top + height);
+    if (dist < nearestDist) { nearestDist = dist; nearest = candidate; }
+  }
+  if (!shell) shell = nearest;
+  if (!shell || !shell.offsetWidth || !shell.offsetHeight) return null;
+
+  return {
+    page:   Number.parseInt(shell.dataset.page, 10),
+    xRatio: clamp((contentX - shell.offsetLeft) / shell.offsetWidth, 0, 1),
+    yRatio: clamp((contentY - shell.offsetTop) / shell.offsetHeight, 0, 1),
+    viewX,
+    viewY,
+  };
 }
 
 function scrollToAnchor(anchor, smooth = false) {
   const shell = elements.pageSpread.querySelector(`.page-shell[data-page="${anchor.page}"]`);
   if (!shell) return;
   const stage = elements.bookStage;
-  const targetLeft = shell.offsetLeft + anchor.xRatio * shell.clientWidth - stage.clientWidth / 2;
-  const targetTop = shell.offsetTop + anchor.yRatio * shell.clientHeight - stage.clientHeight / 2;
-  stage.scrollTo({
-    left: Math.max(0, targetLeft),
-    top: Math.max(0, targetTop),
-    behavior: smooth ? "smooth" : "auto",
-  });
+  const viewX = Number.isFinite(anchor.viewX) ? anchor.viewX : stage.clientWidth / 2;
+  const viewY = Number.isFinite(anchor.viewY) ? anchor.viewY : stage.clientHeight / 2;
+  const targetLeft = shell.offsetLeft + anchor.xRatio * shell.clientWidth - viewX;
+  const targetTop  = shell.offsetTop  + anchor.yRatio * shell.clientHeight - viewY;
+  stageScrollTo(Math.max(0, targetLeft), Math.max(0, targetTop), smooth);
 }
 
 async function renderSpread() {
   if (!state.pdf) { syncControls(); return; }
 
+  teardownContinuousRendering();
   const renderId = ++state.renderId;
   const pages    = getVisiblePages();
   const shells   = pages.map((pn, i) => createPageShell(pn, pages.length, i));
@@ -1224,22 +1550,36 @@ function getStagePaddingY() {
   return Number.parseFloat(s.paddingTop) + Number.parseFloat(s.paddingBottom);
 }
 
+/* Scala di output del canvas: DPR limitato + tetto ai pixel totali,
+   così zoom alti su schermi retina non esauriscono la memoria */
+function getOutputScale(viewport) {
+  const dpr = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
+  const pixels = viewport.width * viewport.height * dpr * dpr;
+  if (pixels <= MAX_RENDER_PIXELS) return dpr;
+  return dpr * Math.sqrt(MAX_RENDER_PIXELS / pixels);
+}
+
 async function renderPage(pageNumber, shell, scale, renderId) {
-  const page     = await state.pdf.getPage(pageNumber);
-  if (renderId !== state.renderId) return;
+  const page = await state.pdf.getPage(pageNumber);
+  if (renderId !== state.renderId || !shell.isConnected) return;
 
   const viewport = page.getViewport({ scale });
-  const dpr      = window.devicePixelRatio || 1;
 
+  /* Memorizza le dimensioni reali della pagina a scala 1 per il resize sync */
+  shell.dataset.baseW = String(viewport.width / scale);
+  shell.dataset.baseH = String(viewport.height / scale);
   shell.style.width  = `${viewport.width}px`;
   shell.style.height = `${viewport.height}px`;
 
+  const outputScale = getOutputScale(viewport);
   const canvas = document.createElement("canvas");
   canvas.className = "pdf-canvas";
-  canvas.width     = Math.floor(viewport.width  * dpr);
-  canvas.height    = Math.floor(viewport.height * dpr);
-  canvas.style.width  = `${viewport.width}px`;
-  canvas.style.height = `${viewport.height}px`;
+  canvas.width     = Math.floor(viewport.width  * outputScale);
+  canvas.height    = Math.floor(viewport.height * outputScale);
+  /* 100%: il canvas segue la shell, così lo zoom stira il bitmap esistente
+     in attesa del re-render nitido */
+  canvas.style.width  = "100%";
+  canvas.style.height = "100%";
 
   const textLayer = document.createElement("div");
   textLayer.className = "textLayer";
@@ -1249,21 +1589,31 @@ async function renderPage(pageNumber, shell, scale, renderId) {
 
   const highlightLayer = document.createElement("div");
   highlightLayer.className = "highlightLayer";
-  highlightLayer.style.width  = `${viewport.width}px`;
-  highlightLayer.style.height = `${viewport.height}px`;
+  highlightLayer.style.width  = "100%";
+  highlightLayer.style.height = "100%";
 
   const linkLayer = document.createElement("div");
   linkLayer.className = "linkLayer";
   linkLayer.style.width  = `${viewport.width}px`;
   linkLayer.style.height = `${viewport.height}px`;
 
-  await page.render({
+  const renderTask = page.render({
     canvasContext: canvas.getContext("2d", { alpha: false }),
-    transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+    transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null,
     viewport,
-  }).promise;
+  });
+  state.pageRenderTasks.set(pageNumber, renderTask);
+  try {
+    await renderTask.promise;
+  } finally {
+    if (state.pageRenderTasks.get(pageNumber) === renderTask) {
+      state.pageRenderTasks.delete(pageNumber);
+    }
+  }
+  if (renderId !== state.renderId || !shell.isConnected) return;
 
   const textContent = await page.getTextContent();
+  if (renderId !== state.renderId || !shell.isConnected) return;
   state.pageTextCache.set(pageNumber, mergeTextContent(textContent));
 
   await pdfjsLib.renderTextLayer({
@@ -1273,10 +1623,15 @@ async function renderPage(pageNumber, shell, scale, renderId) {
   }).promise;
 
   const annotations = await page.getAnnotations({ intent: "display" });
+  if (renderId !== state.renderId || !shell.isConnected) return;
+  /* Lo zoom è cambiato mentre renderizzavamo: scarta il risultato obsoleto */
+  if (isContinuousMode() && Number.isFinite(state.continuousScale) && state.continuousScale !== scale) return;
   renderLinkLayer(annotations, linkLayer, viewport);
   renderBookmarkHighlights(pageNumber, highlightLayer);
 
   shell.replaceChildren(canvas, highlightLayer, textLayer, linkLayer);
+  shell.dataset.renderedScale = String(scale);
+  applySearchHighlights(shell);
 }
 
 /* ── Bookmark highlights on page ── */
@@ -1351,13 +1706,13 @@ async function goToDestination(destination) {
 /* ============================================================
    ZOOM
    ============================================================ */
-function changeZoom(delta) {
+function changeZoom(delta, anchorPoint = null) {
   const next = clamp(
     state.zoomPercent + delta,
     Number(elements.zoomRange.min),
     Number(elements.zoomRange.max)
   );
-  setZoomPercent(next);
+  setZoomPercent(next, { anchorPoint });
 }
 
 /* ============================================================
@@ -1568,6 +1923,7 @@ function scrollToPendingBookmark() {
    ============================================================ */
 async function runSearch() {
   const query = normalizeText(elements.searchInput.value.trim());
+  const myToken = ++searchToken;
   state.searchMatches  = [];
   state.searchPosition = -1;
   elements.resultList.replaceChildren();
@@ -1581,16 +1937,24 @@ async function runSearch() {
 
   setStatus("Ricerca in corso...");
   elements.searchCount.textContent = "Cerco...";
+  const pdf = state.pdf;
 
   for (let pn = 1; pn <= state.totalPages; pn++) {
+    /* Query cambiata o PDF chiuso nel frattempo: abbandona questa ricerca */
+    if (myToken !== searchToken || state.pdf !== pdf) return;
     const text      = await getPageText(pn);
     const normed    = normalizeText(text);
     const count     = countMatches(normed, query);
     if (count > 0) {
       state.searchMatches.push({ count, page: pn, snippet: createSnippet(text, query) });
     }
+    if (pn % 12 === 0) {
+      elements.searchCount.textContent =
+        `Cerco... ${Math.round((pn / state.totalPages) * 100)}%`;
+    }
   }
 
+  if (myToken !== searchToken || state.pdf !== pdf) return;
   renderSearchResults();
   applySearchHighlights();
   syncControls();
@@ -1674,9 +2038,9 @@ function activateSearchResult() {
   goToPage(match.page);
 }
 
-function applySearchHighlights() {
+function applySearchHighlights(root = elements.pageSpread) {
   const query = normalizeText(elements.searchInput.value.trim());
-  elements.pageSpread.querySelectorAll(".textLayer span").forEach((span) => {
+  root.querySelectorAll(".textLayer span").forEach((span) => {
     const hit = query.length >= MIN_QUERY_LENGTH && normalizeText(span.textContent).includes(query);
     span.classList.toggle("search-hit", hit);
   });
@@ -1772,13 +2136,17 @@ function syncControls() {
   elements.emptyState.hidden              = has;
   elements.pageInput.disabled             = !has;
   elements.pageInput.value                = String(first);
-  elements.prevButton.disabled            = continuous || !has || first <= 1;
-  elements.nextButton.disabled            = continuous || !has || last >= state.totalPages;
+  /* Attivi anche in modalità continua: servono a bottom bar mobile e tastiera */
+  elements.prevButton.disabled            = !has || first <= 1;
+  elements.nextButton.disabled            = !has || last >= state.totalPages;
   elements.zoomInButton.disabled          = !has;
   elements.zoomOutButton.disabled         = !has;
   elements.zoomRange.disabled             = !has;
-  elements.spreadButton.disabled          = !has || continuous;
-  elements.spreadButton.hidden            = continuous;
+  elements.spreadButton.disabled          = !has;
+  elements.spreadButton.classList.toggle("is-active", !continuous);
+  const spreadLabel = continuous ? "Vista libro" : "Vista scorrimento";
+  elements.spreadButton.title = spreadLabel;
+  elements.spreadButton.setAttribute("aria-label", spreadLabel);
   elements.addPageBookmarkButton.disabled = !has;
   // elements.bookmarkToggleButton.disabled  = !has;
   elements.searchInput.disabled           = !has;

@@ -8,17 +8,27 @@ Inserisci il pdf da leggere in `contenuti`.
 
 ### Tools
 
-- Ricerca full-text nel PDF
-- Zoom e Visualizzazione
+- Ricerca full-text nel PDF (con avanzamento e annullamento automatico se cambi query)
+- Zoom fluido con feedback istantaneo (slider, `Ctrl`+rotella, pinch, tasti `+`/`-`)
+- Due modalità di visualizzazione su PC: **scorrimento continuo** e **vista libro** (spread a due pagine affiancate) — si passa dall'una all'altra col pulsante nella barra strumenti
 - Segnalibri personalizzati su pagina o testo evidenziato
-- **Modalità spread** per visualizzare due pagine affiancate (SOLO SU PC)
+- Export/import segnalibri in JSON dalla home
+- Indicatore di pagina e barra di avanzamento lettura
 - Responsivo su tutti i dispositivi
 
 ### Mobile
 
 - **Swipe navigation**: Scorri per cambiare pagina
+- Bottom bar con pagina precedente/successiva e salto diretto a una pagina
 - Touch-friendly controls
 - Toolbar sempre accessibile
+
+### Prestazioni
+
+- **Rendering virtualizzato**: vengono renderizzate solo le pagine vicine al viewport (IntersectionObserver); le pagine lontane vengono rilasciate. Memoria e tempi di zoom restano costanti anche con PDF di centinaia di pagine.
+- **Zoom istantaneo**: durante lo zoom il bitmap esistente viene stirato via CSS e il re-render nitido riguarda solo le pagine visibili.
+- **Cap alla risoluzione dei canvas** (DPR max 2 + tetto pixel) per non esaurire la memoria su schermi retina.
+- **Copertine in cache** (localStorage): generate una sola volta dalla prima pagina del PDF, poi riusate senza riscaricare nulla.
 
 ## Libreria PDF
 
@@ -47,4 +57,4 @@ Esempio:
 
 ## 📋 TODO
 
-- [ ] Modo per effettuare export e import di segnalibri
+- [x] Modo per effettuare export e import di segnalibri

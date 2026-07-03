@@ -380,6 +380,11 @@
     display: none;
   }
 
+  /* Pill indicatore pagina desktop: su mobile c'è già l'input nella bottom bar */
+  .page-indicator {
+    display: none;
+  }
+
   /* Status bar: compatta */
   .statusbar {
     display: none; /* nascosta su mobile, spazio usato dalla bottom bar */
@@ -795,8 +800,15 @@
     display: flex !important; /* mantieni nel DOM */
   }
 
-  /* ── SWIPE INDICATOR sul book stage ── */
-  .book-stage::after {
+  /* ── SWIPE INDICATOR ──
+     Sta su .pdf-column (non su .book-stage) per due motivi:
+     1. .book-stage::after è già usato come spacer di scroll (vedi sopra)
+     2. .book-stage scrolla, quindi un overlay absolute scorrerebbe via */
+  .pdf-column {
+    position: relative;
+  }
+
+  .pdf-column::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -813,7 +825,7 @@
     z-index: 5;
   }
 
-  .book-stage.is-swiping::after {
+  .pdf-column:has(.book-stage.is-swiping)::after {
     opacity: 1;
   }
 
