@@ -15,8 +15,15 @@
   --reader-accent:        #d71920;
   --reader-accent-strong: #ff3038;
   --reader-accent-soft:   rgba(215, 25, 32, 0.16);
-  --reader-accent-glow:   rgba(215, 25, 32, 0.42);
+  --reader-accent-glow:   rgba(215, 25, 32, 0.28);
   --reader-paper:         #fffdfa;
+
+  /* Scala di arrotondamento — coerente con style.css */
+  --radius-sm:   10px;
+  --radius-md:   16px;
+  --radius-lg:   24px;
+  --radius-xl:   32px;
+  --radius-pill: 999px;
 
   /* Layout */
   --toolbar-height: 62px;
@@ -103,45 +110,21 @@ body.page-app main::before {
   min-height: min(76vh, 730px);
   padding: clamp(22px, 4vw, 60px);
   overflow: hidden;
-  border-radius: clamp(18px, 4vw, 44px);
+  border-radius: clamp(20px, 4vw, var(--radius-xl));
 
-  /* Gradient border via background-clip */
-  border: 1px solid transparent;
-  background:
-    linear-gradient(#060404, #060404) padding-box,
-    linear-gradient(
-      135deg,
-      rgba(255, 49, 56, 0.9) 0%,
-      rgba(90, 3, 7, 0.85) 48%,
-      rgba(255, 49, 56, 0.6) 100%
-    ) border-box;
-
+  background: #060404;
+  border: 1px solid rgba(215, 25, 32, 0.32);
   box-shadow:
-    inset 0 0 0 2px rgba(88, 5, 9, 0.72),
-    inset 0 0 60px rgba(140, 8, 12, 0.52),
-    0 32px 90px rgba(0, 0, 0, 0.62),
-    0 0 0 1px rgba(215, 25, 32, 0.08);
+    inset 0 0 40px rgba(140, 8, 12, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
-/* Inner border accent */
-.hellfire-frame::before {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border: 1px solid rgba(215, 25, 32, 0.28);
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 0 40px rgba(215, 25, 32, 0.18);
-}
-
-/* Corner ornament glow */
+/* Bagliore d'ambiente discreto, un solo livello */
 .hellfire-frame::after {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 42% 28% at 50% 0%, rgba(215, 25, 32, 0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 30% 20% at 50% 100%, rgba(120, 5, 10, 0.15) 0%, transparent 70%);
+  background: radial-gradient(ellipse 42% 26% at 50% 0%, rgba(215, 25, 32, 0.1) 0%, transparent 70%);
   pointer-events: none;
   border-radius: inherit;
 }
@@ -205,6 +188,37 @@ body.page-app main::before {
   min-height: clamp(310px, 48vh, 530px);
   overflow: hidden;
   touch-action: pan-y;
+}
+
+/* "Lama di Luce": i volumi non appoggiano su una mensola di materia ma
+   levitano su una soglia di luce rossa — nel Sottosopra la presenza si
+   dichiara col bagliore, mai col legno. L'ombra sotto le copertine è
+   l'unica prova del loro peso. Su mobile ::after è riusato dalle frecce
+   di swipe (mobile.css vince nel breakpoint): solo desktop. */
+.book-carousel::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  /* Base delle copertine: centro card (52%) + metà cover − blocco
+     etichette (stessa geometria di .book-card, cover aspect 0.72) */
+  top: calc(52% + clamp(126px, 17vw, 232px) * 0.6944 - 41px);
+  transform: translateX(-50%);
+  width: min(74%, 820px);
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(215, 25, 32, 0.5) 16%,
+    rgba(255, 48, 56, 0.85) 50%,
+    rgba(215, 25, 32, 0.5) 84%,
+    transparent);
+  box-shadow:
+    0 0 10px rgba(255, 48, 56, 0.45),
+    0 0 34px rgba(215, 25, 32, 0.25),
+    /* pozza d'ombra sotto i volumi */
+    0 14px 30px 8px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .book-card {
@@ -495,10 +509,13 @@ a.icon-button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--reader-muted);
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  /* Corsivo da frontespizio antico: rimanda al tomo che stai leggendo */
+  color: #cdb28e;
+  font-family: "IM Fell English", Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
   pointer-events: none;
 }
 
@@ -601,10 +618,60 @@ a.icon-button {
 }
 
 .pdf-column {
+  position: relative; /* ancora per le zone sfoglia */
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   min-width: 0;
+}
+
+/* ── Zone "sfoglia" — margini del libro cliccabili in vista libro ──
+   Invisibili a riposo: compaiono al passaggio come un invito a voltare
+   pagina, con il bordo che si scurisce come carta sollevata */
+.page-flip-zone {
+  position: absolute;
+  top: 28px;
+  bottom: 92px;
+  width: clamp(52px, 9%, 116px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 244, 230, 0.85);
+  z-index: 8;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--t-med);
+}
+
+.page-flip-zone.is-left  { left: 0; }
+.page-flip-zone.is-right { right: 0; }
+
+.page-flip-zone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(215, 25, 32, 0.14), transparent 80%);
+}
+
+.page-flip-zone.is-right::before {
+  background: linear-gradient(to left, rgba(215, 25, 32, 0.14), transparent 80%);
+}
+
+.page-flip-zone .flip-glyph {
+  position: relative;
+  font-family: "IM Fell English", Georgia, serif;
+  font-size: 2rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.page-flip-zone:hover:not(:disabled),
+.page-flip-zone:focus-visible {
+  opacity: 1;
+}
+
+.page-flip-zone:disabled {
+  cursor: default;
+  opacity: 0;
 }
 
 /* ── Tool rail ── */
@@ -639,6 +706,90 @@ a.icon-button {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-8px);
+}
+
+/* ── Maniglia di trascinamento della rail ── */
+.tool-rail-handle {
+  display: grid;
+  place-items: center;
+  min-height: 20px;
+  margin: -6px -4px -2px;
+  border-radius: 10px;
+  color: rgba(255, 244, 230, 0.35);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+
+.tool-rail-handle:hover {
+  color: #fff5e8;
+  background: rgba(255, 244, 230, 0.06);
+}
+
+.tool-rail-handle svg {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+/* Rail sganciata: fluttua sopra tutto, posizione inline da JS */
+.tools-wrap.is-floating {
+  position: fixed;
+  transform: none;
+  z-index: 400;
+}
+
+.tools-wrap.is-floating .tool-rail {
+  border-color: rgba(215, 25, 32, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 230, 0.04),
+    0 22px 54px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(215, 25, 32, 0.14);
+}
+
+.tools-wrap.is-dragging {
+  opacity: 0.92;
+}
+
+.tools-wrap.is-dragging .tool-rail-handle {
+  cursor: grabbing;
+  color: var(--reader-accent-strong);
+}
+
+/* "Tana" della rail: appare tratteggiata durante il drag; si accende
+   quando sei abbastanza vicino da riagganciarla */
+.tools-dock-ghost {
+  position: absolute;
+  top: 50%;
+  left: clamp(12px, 2vw, 24px);
+  transform: translateY(-50%);
+  border: 2px dashed rgba(255, 48, 56, 0.55);
+  border-radius: 18px;
+  /* Fondo pieno + blur: leggibile anche sopra le pagine bianche del PDF */
+  background: rgba(8, 4, 4, 0.6);
+  backdrop-filter: blur(3px);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 9;
+  transition:
+    opacity var(--t-fast),
+    border-color var(--t-fast),
+    background-color var(--t-fast),
+    box-shadow var(--t-fast);
+}
+
+.tools-dock-ghost.is-near {
+  opacity: 1;
+  border-style: solid;
+  border-color: rgba(255, 48, 56, 1);
+  background: rgba(215, 25, 32, 0.18);
+  box-shadow: 0 0 20px rgba(215, 25, 32, 0.5), inset 0 0 24px rgba(215, 25, 32, 0.2);
 }
 
 .tool-rail .toolbar-group {
@@ -1007,6 +1158,13 @@ input:disabled {
   align-items: flex-start;
 }
 
+/* Anteprima zoom fluido: la scala anima sulla GPU (niente "scaletta"),
+   il re-render nitido arriva al commit di fine gesto */
+.spread.is-zoom-preview {
+  transition: transform 160ms cubic-bezier(0.25, 0.6, 0.35, 1);
+  will-change: transform;
+}
+
 .reader-layout.is-continuous .page-shell {
   margin: 0;
 }
@@ -1025,23 +1183,67 @@ input:disabled {
   transition: box-shadow var(--t-med);
 }
 
-/* Spread view: left/right page edge shadows for book feel */
+/* ── Vista libro: un tomo aperto sul tavolo ──
+   Pagine unite al dorso, pile di fogli sui bordi esterni, ombra del
+   volume sul piano: la doppia pagina deve sembrare pronta da sfogliare */
+.reader-layout:not(.is-continuous) .spread {
+  gap: 4px;
+}
+
+.reader-layout:not(.is-continuous) .book-stage {
+  background:
+    radial-gradient(ellipse 72% 58% at 50% 44%, rgba(74, 42, 16, 0.16), transparent 72%),
+    radial-gradient(ellipse 100% 100% at 50% 120%, rgba(0, 0, 0, 0.5), transparent 60%);
+}
+
 .page-shell.is-left {
-  border-radius: 2px 7px 7px 2px;
+  border-radius: 4px 1px 1px 4px;
   box-shadow:
-    -1px 0 6px rgba(0,0,0,0.18),
-    0 8px 24px rgba(0,0,0,0.24),
-    0 24px 60px rgba(0,0,0,0.38),
-    inset 3px 0 12px rgba(0,0,0,0.14);
+    /* pila di fogli sul taglio sinistro */
+    -3px 1px 0 -1px #e8dcc2,
+    -6px 2px 0 -2px #d6c5a3,
+    -9px 3px 0 -3px #bfa87f,
+    -12px 4px 0 -4px #9e8a67,
+    /* ombra del volume */
+    -6px 10px 18px rgba(0, 0, 0, 0.3),
+    0 26px 60px rgba(0, 0, 0, 0.5),
+    inset 4px 0 14px rgba(0, 0, 0, 0.12);
 }
 
 .page-shell.is-right {
-  border-radius: 7px 2px 2px 7px;
+  border-radius: 1px 4px 4px 1px;
   box-shadow:
-    1px 0 6px rgba(0,0,0,0.18),
-    0 8px 24px rgba(0,0,0,0.24),
-    0 24px 60px rgba(0,0,0,0.38),
-    inset -3px 0 12px rgba(0,0,0,0.12);
+    3px 1px 0 -1px #e8dcc2,
+    6px 2px 0 -2px #d6c5a3,
+    9px 3px 0 -3px #bfa87f,
+    12px 4px 0 -4px #9e8a67,
+    6px 10px 18px rgba(0, 0, 0, 0.3),
+    0 26px 60px rgba(0, 0, 0, 0.5),
+    inset -4px 0 14px rgba(0, 0, 0, 0.1);
+}
+
+/* Ombra del dorso: la carta si incurva verso la rilegatura */
+.page-shell.is-left::before,
+.page-shell.is-right::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.page-shell.is-left::before {
+  right: 0;
+  background: linear-gradient(to left,
+    rgba(62, 38, 14, 0.22), rgba(62, 38, 14, 0.05) 55%, transparent);
+}
+
+.page-shell.is-right::before {
+  left: 0;
+  background: linear-gradient(to right,
+    rgba(62, 38, 14, 0.2), rgba(62, 38, 14, 0.05) 55%, transparent);
 }
 
 .page-shell::after {
@@ -1049,7 +1251,10 @@ input:disabled {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(35, 33, 29, 0.07);
+  /* Bordo + leggera vignetta calda: carta vissuta, lettura "umanizzata" */
+  box-shadow:
+    inset 0 0 0 1px rgba(35, 33, 29, 0.07),
+    inset 0 0 44px rgba(96, 62, 22, 0.09);
   border-radius: inherit;
 }
 
@@ -1062,6 +1267,46 @@ input:disabled {
 .book-stage.is-turning-back .page-shell {
   animation: turnBack 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
   transform-origin: right center;
+}
+
+/* In vista doppia pagina è il foglio in arrivo a piegarsi dal dorso,
+   con più corsa: l'occhio legge il gesto dello sfogliare */
+.book-stage.is-turning-forward .page-shell.is-right {
+  animation: turnLeafForward 460ms cubic-bezier(0.16, 0.68, 0.28, 1) both;
+  transform-origin: left center;
+}
+
+.book-stage.is-turning-back .page-shell.is-left {
+  animation: turnLeafBack 460ms cubic-bezier(0.16, 0.68, 0.28, 1) both;
+  transform-origin: right center;
+}
+
+@keyframes turnLeafForward {
+  0% {
+    transform: perspective(1600px) rotateY(-42deg);
+    opacity: 0.2;
+    filter: brightness(0.62);
+  }
+  55% { opacity: 1; }
+  100% {
+    transform: perspective(1600px) rotateY(0);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes turnLeafBack {
+  0% {
+    transform: perspective(1600px) rotateY(42deg);
+    opacity: 0.2;
+    filter: brightness(0.62);
+  }
+  55% { opacity: 1; }
+  100% {
+    transform: perspective(1600px) rotateY(0);
+    opacity: 1;
+    filter: brightness(1);
+  }
 }
 
 .pdf-canvas {

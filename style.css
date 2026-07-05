@@ -156,15 +156,6 @@ header {
   object-fit: contain;
 }
 
-/* Override for button.card so it inherits font/text styles */
-button.card {
-  background: none;
-  border: none;
-  font: inherit;
-  text-align: inherit;
-  cursor: pointer;
-}
-
 /* ── Main ── */
 main {
   flex: 1;
@@ -190,109 +181,333 @@ main::before {
   z-index: 0;
 }
 
-/* ── Cards Grid ── */
-.cards-grid {
-  max-width: 84%;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 22px;
-  align-items: end;
-  margin-bottom: 80px;
+/* ══════════════════════════════════════════════════════════
+   TAVOLO DA GIOCO (home)
+   Gli elementi del set giacciono sparsi sul piano; al click
+   l'oggetto "si alza" verso la scheda dettaglio (.item-detail)
+   ══════════════════════════════════════════════════════════ */
+.table-scene {
   position: relative;
-  z-index: 1;
-}
-
-/* ── Card ── */
-.card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform var(--transition-med);
-  position: relative;
-}
-
-.card:hover {
-  transform: translateY(-10px);
-}
-
-.card:hover .card-bg {
-  border-color: rgba(215, 25, 32, 0.55);
-  box-shadow:
-    var(--shadow-card) 0px 0px 38px,
-    rgba(255, 80, 80, 0.18) 0px 0px 80px;
-}
-
-/* Card icon floats above the card-bg */
-.card-icon {
-  --icon-saturation: 1;
-  width: 88%;
-  max-width: 200px;
-  object-fit: contain;
-  position: relative;
-  z-index: 2;
-  margin-bottom: -55px;
-  filter: saturate(var(--icon-saturation)) drop-shadow(rgba(0,0,0,0.82) 0px 10px 22px);
-  transition: filter var(--transition-med), transform var(--transition-med);
-}
-
-.card:hover .card-icon {
-  filter: saturate(var(--icon-saturation)) drop-shadow(rgba(207, 8, 8, 0.8) 0px 16px 32px);
-  transform: scale(1.04);
-}
-
-/* Greyed-out icon for unavailable cards */
-.card-folder-missing .card-icon {
-  --icon-saturation: 0;
-}
-.card-folder-missing .card-bg {
-  box-shadow: rgba(60, 20, 20, 0.5) 0px 0px 22px;
-  border-color: rgba(55, 30, 30, 0.4);
-  opacity: 0.82;
-}
-
-/* Card background tile */
-.card-bg {
-  background: var(--surface-card);
-  border-radius: 26px;
-  max-width: 90%;
-  width: 89%;
-  padding: 65px 14px 24px;
-  text-align: center;
-  min-height: 150px;
-  height: 120px;
-  max-height: 200px;
+  flex: 1;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-card) 0px 0px 28px;
-  transition:
-    box-shadow var(--transition-med),
-    border-color var(--transition-med);
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  z-index: 1;
 }
 
-/* Card label text */
-.card-label {
+/* Piano del tavolo: lastra scura arrotondata con pozza di luce rossa
+   al centro e griglia da battle-mat appena percettibile */
+.table-surface {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: 92%;
+  height: 88%;
+  border-radius: 40px / 56px;
+  /* Semi-trasparente: l'illustrazione dell'Hellfire Club resta visibile
+     (dimmerata) attorno e dietro al tavolo, come nelle reference */
+  background:
+    radial-gradient(ellipse 50% 42% at 50% 50%, rgba(215, 25, 32, 0.13), transparent 72%),
+    repeating-linear-gradient(0deg, rgba(255, 48, 56, 0.028) 0 1px, transparent 1px 52px),
+    repeating-linear-gradient(90deg, rgba(255, 48, 56, 0.028) 0 1px, transparent 1px 52px),
+    radial-gradient(ellipse 80% 84% at 50% 50%, rgba(10, 6, 6, 0.62) 0%, rgba(6, 3, 3, 0.86) 62%, rgba(4, 2, 2, 0.95) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(215, 25, 32, 0.16),
+    inset 0 0 120px rgba(0, 0, 0, 0.7),
+    0 40px 100px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+/* Piano di gioco: stesso box della family shot (aspect-ratio dell'immagine),
+   così ogni icona può essere allineata al pezzo corrispondente della foto.
+   width/height dell'immagine reale: 1024×685. */
+.table-items {
+  position: relative;
+  z-index: 1;
+  /* aspect-ratio uguale all'immagine: il box e la family shot coincidono
+     (allineamento icone garantito). Niente max-height: romperebbe l'aspect. */
+  width: min(940px, 90%);
+  aspect-ratio: 1024 / 685;
+  margin: 0 auto;
+}
+
+/* Family shot come sfondo dello STESSO box (fondo già trasparente: niente
+   maschera). Se il file manca resta comunque visibile l'illustrazione dietro. */
+.table-items::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: url("assets/reference/familyshot.png") center / contain no-repeat;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.table-item {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  transform: translate(-50%, -50%);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: var(--z, 1);
+}
+
+.table-item:focus-visible { outline: none; }
+
+/* Ogni icona è centrata sul pezzo corrispondente della family shot e
+   dimensionata in proporzione: schermo (il più grande) > libretti > schede >
+   carte (le più piccole). Coordinate in % del box = pixel della foto 1024×685. */
+.ti-schermo  { --x: 43%; --y: 21%; --w: 77%; --z: 1; --rot: -0deg;  --perspective: 1400px; --rotateX: 16deg; }
+.ti-schede   { --x: 78%; --y: 49%; --w: 38%; --z: 2; --rot:  5deg;  --perspective: 1400px; --rotateX: 60deg; }
+.ti-carte    { --x: 56%; --y: 80%; --w: 35%; --z: 2; --rot: -30deg; --perspective: 1400px; --rotateX: 60deg; }
+.ti-libretti { --x: 33%; --y: 55%; --w: 28%; --z: 4; --rot: -45deg; --perspective: 1400px; --rotateX: 60deg; }
+
+/* Oggetto con una lieve inclinazione da tavolo. Il transform di base è in una
+   variabile così l'hover può aggiungere lo scale senza riscriverlo. */
+.item-obj {
+  display: block;
+  --obj-transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateZ(var(--rot));
+  transform: var(--obj-transform);
+  transform-origin: 50% 88%;
+  filter: drop-shadow(0 16px 16px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms cubic-bezier(0.2, 0.7, 0.3, 1), filter 200ms ease;
+  will-change: transform, filter;
+}
+
+.item-obj img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Categorie senza contenuti: oggetto sbiadito */
+.table-item.is-empty .item-obj {
+  filter: saturate(0.14) brightness(0.7) drop-shadow(0 16px 16px rgba(0, 0, 0, 0.55));
+}
+
+/* Hover/focus: l'icona si ingrandisce leggermente e si accende di rosso */
+.table-item:hover .item-obj,
+.table-item:focus-visible .item-obj {
+  transform: var(--obj-transform) scale(1.08);
+  filter:
+    drop-shadow(0 22px 20px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 26px rgba(255, 48, 56, 0.6));
+}
+
+.table-item.is-empty:hover .item-obj,
+.table-item.is-empty:focus-visible .item-obj {
+  transform: var(--obj-transform) scale(1.08);
+  filter:
+    saturate(0.14) brightness(0.78)
+    drop-shadow(0 22px 20px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 20px rgba(255, 48, 56, 0.4));
+}
+
+/* Sorgente nascosta mentre l'oggetto è "sollevato" nel dettaglio */
+.table-item.is-lifted { visibility: hidden; }
+
+/* Etichetta a comparsa (chip) su hover/focus */
+.item-hint {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  transform: translate(-50%, 100%);
+  padding: 4px 13px;
+  border-radius: 999px;
+  background: rgba(8, 4, 4, 0.9);
+  border: 1px solid rgba(215, 25, 32, 0.4);
+  color: #fff8ef;
+  font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+  font-size: clamp(13px, 1.2vw, 17px);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.table-item:hover .item-hint,
+.table-item:focus-visible .item-hint {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DETTAGLIO OGGETTO — l'oggetto si alza dal tavolo davanti a
+   tutto, sfondo scurito e non interagibile
+   ══════════════════════════════════════════════════════════ */
+.item-detail {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+}
+
+.item-detail[hidden] { display: none; }
+
+body.detail-active { overflow: hidden; }
+
+.item-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 1, 1, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: detail-fade 240ms ease both;
+}
+
+.item-detail.is-closing .item-detail-backdrop {
+  animation: detail-fade 260ms ease reverse both;
+}
+
+.item-detail-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 72px);
+  width: min(1040px, 100%);
+  max-height: 100%;
+}
+
+/* L'oggetto in piedi (la posa finale del FLIP gestito da JS) */
+.detail-visual {
+  display: flex;
+  justify-content: center;
+  perspective: 1300px;
+}
+
+.detail-visual img {
+  display: block;
+  width: min(100%, 400px);
+  height: auto;
+  transform-origin: 50% 100%;
+  filter:
+    drop-shadow(0 34px 34px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 30px rgba(215, 25, 32, 0.32));
+}
+
+@keyframes detail-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes detail-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Scheda informativa accanto all'oggetto */
+.detail-info {
+  min-width: 0;
+  display: grid;
+  gap: clamp(14px, 2vw, 22px);
+  align-content: center;
+  animation: detail-rise 420ms cubic-bezier(0.2, 0.7, 0.25, 1) 80ms both;
+}
+
+.item-detail.is-closing .detail-info {
+  animation: detail-fade 200ms ease reverse both;
+}
+
+.detail-info h2 {
+  margin: 0;
   color: var(--ink);
   font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
-  font-size: clamp(23px, 2.2vw, 32px);
-  letter-spacing: 3px;
+  font-size: clamp(34px, 5vw, 56px);
+  letter-spacing: 5px;
   text-transform: uppercase;
-  line-height: 1.1;
-  display: block;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.7);
-  transition: text-shadow var(--transition-med), color var(--transition-med);
+  text-shadow: 0 0 22px rgba(255, 49, 56, 0.4);
 }
 
-/* Al passaggio la scritta si accende di rosso, come un'insegna al neon */
-.card:hover .card-label {
+.detail-desc {
+  margin: 0;
+  max-width: 46ch;
+  color: rgba(230, 218, 205, 0.82);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: clamp(15px, 1.3vw, 17px);
+  line-height: 1.62;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 26px;
+  padding-top: 2px;
+  color: rgba(230, 218, 205, 0.5);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.detail-meta strong { color: var(--ink); font-weight: 700; }
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.detail-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 40px;
+  border-radius: 999px;
+  background: var(--red-core);
+  color: #fff;
+  font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+  font-size: 21px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 0 22px rgba(215, 25, 32, 0.4);
+  transition: background var(--transition-fast), transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.detail-open:hover {
+  background: var(--red-hot);
+  transform: translateY(-2px);
+  box-shadow: 0 0 34px rgba(255, 48, 56, 0.55);
+}
+
+.detail-open.is-disabled {
+  pointer-events: none;
+  opacity: 0.32;
+  filter: saturate(0.3);
+}
+
+.detail-close {
+  min-height: 52px;
+  padding: 0 30px;
+  border: 1px solid rgba(255, 244, 230, 0.25);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: "Bebas Neue", Impact, Haettenschweiler, sans-serif;
+  font-size: 18px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.detail-close:hover {
   color: #fff8ef;
-  text-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.7),
-    0 0 16px rgba(255, 49, 56, 0.6),
-    0 0 40px rgba(215, 25, 32, 0.35);
+  border-color: rgba(255, 48, 56, 0.55);
 }
 
 /* ── Inner main (used by sub-pages like libretti) ── */
@@ -534,8 +749,14 @@ main::before {
 @media (prefers-reduced-motion: reduce) {
   body::before,
   .st-modal-label,
-  .card:hover .card-icon {
+  .detail-visual img,
+  .item-detail-backdrop,
+  .detail-info {
     animation: none !important;
+  }
+
+  .item-obj {
+    transition: none !important;
   }
 
   .st-particles {
@@ -564,19 +785,6 @@ main::before {
   .header-center .header-img { height: 34px; }
 
   main { padding: 0 12px 20px; }
-
-  .cards-grid {
-    max-width: 100%;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-  }
-
-  .card-icon { margin-bottom: -36px; }
-
-  .card-bg {
-    padding: 44px 10px 16px;
-    min-height: 90px;
-  }
 
   .inner-main { padding: 16px 12px; }
 

@@ -10,7 +10,7 @@
     <link rel="icon" href="../assets/icons/libretti.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Metal+Mania&family=Dancing+Script:wght@600&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../reader.css">
     <link rel="stylesheet" href="../mobile.css">
@@ -40,9 +40,20 @@
             <section class="reader-panel" aria-label="Lettore PDF">
                 <div class="reader-workspace">
 
+                    <!-- Ghost di aggancio: mostra la "tana" della rail durante il drag -->
+                    <div class="tools-dock-ghost" id="toolsDockGhost" aria-hidden="true" hidden></div>
+
                     <!-- Side tool rail -->
                     <div class="tools-wrap" id="toolsWrap">
                         <div class="tool-rail" id="toolRail" aria-label="Strumenti lettore">
+
+                            <!-- Maniglia di trascinamento -->
+                            <div class="tool-rail-handle" id="toolRailHandle"
+                                title="Trascina gli strumenti (rilascia qui vicino per riagganciare)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M9 5.5h.01M15 5.5h.01M9 12h.01M15 12h.01M9 18.5h.01M15 18.5h.01" />
+                                </svg>
+                            </div>
 
                             <!-- View tools -->
                             <div class="toolbar-group view-group">
@@ -80,7 +91,7 @@
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                                 </button>
                                 <input id="zoomRange" class="zoom-range"
-                                    type="range" min="75" max="220" step="5" value="100"
+                                    type="range" min="50" max="300" step="5" value="100"
                                     aria-label="Zoom" />
                                 <button class="icon-button" type="button"
                                     id="zoomOutButton" title="Riduci zoom" aria-label="Riduci zoom">
@@ -118,6 +129,16 @@
                             <!-- Page rendering target -->
                             <div class="spread" id="pageSpread" aria-live="polite"></div>
                         </div>
+
+                        <!-- Zone "sfoglia" ai margini (solo vista libro) -->
+                        <button class="page-flip-zone is-left" id="flipPrevZone" type="button"
+                            tabindex="-1" hidden aria-label="Sfoglia indietro">
+                            <span class="flip-glyph" aria-hidden="true">&#10094;</span>
+                        </button>
+                        <button class="page-flip-zone is-right" id="flipNextZone" type="button"
+                            tabindex="-1" hidden aria-label="Sfoglia avanti">
+                            <span class="flip-glyph" aria-hidden="true">&#10095;</span>
+                        </button>
 
                         <!-- Page navigation bar -->
                         <div class="toolbar page-toolbar" aria-label="Navigazione pagine">
@@ -238,8 +259,18 @@
     <!-- ── Mobile: backdrop per drawer (ricerca/segnalibri) ── -->
     <div class="mob-drawer-backdrop" id="mobDrawerBackdrop" aria-hidden="true"></div>
 
+    <!-- Ghost di aggancio delle barre mobile (visibili durante il drag) -->
+    <div class="mob-bar-ghost mob-bar-ghost-top" id="mobTopBarGhost" hidden aria-hidden="true"></div>
+    <div class="mob-bar-ghost mob-bar-ghost-bottom" id="mobBottomBarGhost" hidden aria-hidden="true"></div>
+
     <!-- ── Mobile: mini toolbar superiore (strumenti) ── -->
     <nav class="mob-top-bar" id="mobTopBar" hidden aria-label="Strumenti lettore">
+        <!-- Maniglia di trascinamento -->
+        <div class="mob-drag-handle" id="mobTopBarHandle"
+            title="Sposta la barra" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M9.5 6h.01M9.5 12h.01M9.5 18h.01M14.5 6h.01M14.5 12h.01M14.5 18h.01" /></svg>
+        </div>
+
         <!-- Ricerca -->
         <button class="icon-button" type="button"
             id="mobSearchToggle" title="Cerca" aria-label="Cerca nel PDF">
@@ -256,22 +287,18 @@
                 <path d="M12 7.5v5M9.5 10h5"/>
             </svg>
         </button>
-
-        <!-- Zoom in/out (ciclico: 80 → 100 → 130 → 160 → 80) -->
-        <button class="icon-button" type="button"
-            id="mobZoomCycle" title="Zoom" aria-label="Cambia zoom">
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m20 20-4.1-4.1"/>
-                <circle cx="11" cy="11" r="6.5"/>
-                <path d="M11 8v6M8 11h6"/>
-            </svg>
-        </button>
     </nav>
 
     <!-- ── Mobile: bottom toolbar fissa ── -->
     <!-- Visibile solo su mobile (display:none su desktop via CSS) -->
     <nav class="mob-bottom-bar" id="mobBottomBar" hidden aria-label="Controlli lettore">
         <div class="mob-nav-group">
+            <!-- Maniglia di trascinamento -->
+            <div class="mob-drag-handle" id="mobBottomBarHandle"
+                title="Sposta la barra" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9.5 6h.01M9.5 12h.01M9.5 18h.01M14.5 6h.01M14.5 12h.01M14.5 18h.01" /></svg>
+            </div>
+
             <button class="icon-button" type="button"
                 id="mobPrevButton" title="Pagina precedente" aria-label="Pagina precedente">
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

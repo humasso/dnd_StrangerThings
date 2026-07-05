@@ -32,6 +32,8 @@ const elements = {
   bookStage:              document.getElementById("bookStage"),
   emptyState:             document.getElementById("emptyState"),
   emptyStateTitle:        document.getElementById("emptyStateTitle"),
+  flipNextZone:           document.getElementById("flipNextZone"),
+  flipPrevZone:           document.getElementById("flipPrevZone"),
   homeButton:             document.getElementById("homeButton"),
   nextButton:             document.getElementById("nextButton"),
   nextResultButton:       document.getElementById("nextResultButton"),
@@ -53,6 +55,8 @@ const elements = {
   spreadButton:           document.getElementById("spreadButton"),
   statusText:             document.getElementById("statusText"),
   toolRail:               document.getElementById("toolRail"),
+  toolRailHandle:         document.getElementById("toolRailHandle"),
+  toolsDockGhost:         document.getElementById("toolsDockGhost"),
   toolsToggleButton:      document.getElementById("toolsToggleButton"),
   toolsWrap:              document.getElementById("toolsWrap"),
   totalPages:             document.getElementById("totalPages"),
@@ -118,6 +122,9 @@ let progressTimer = 0;
 let scrollSyncRaf = 0;
 let isScrollTrackingBound = false;
 let pageObserver = null;
+/* Sessione di zoom fluido: anteprima via transform, commit a fine gesto */
+let zoomSession = null;
+let zoomCommitTimer = 0;
 
 /* ============================================================
    BOOT
@@ -134,6 +141,7 @@ function boot() {
   applyReaderLayoutClasses();
   syncSearchPanelVisibility();
   syncToolsVisibility();
+  setupToolRailDrag();
   renderBookmarkList();
   syncControls();
   resizeObserver.observe(elements.bookStage);
@@ -163,6 +171,10 @@ async function loadReaderBook() {
     if (book) {
       state.currentBook = book;
       state.currentCategory = slug;
+      /* "Ultima lettura" della categoria: mostrata nella scheda dettaglio
+         del tavolo di gioco in home */
+      try { localStorage.setItem(`pdf-book-viewer:last-visit:${slug}`, String(Date.now())); }
+      catch { /* quota piena: si perde solo la statistica */ }
       setBackLink(slug);
       document.title = `${book.title} – Hellfire Club`;
       if (elements.readerBookTitle) elements.readerBookTitle.textContent = book.title;
@@ -196,6 +208,14 @@ function setBackLink(slug) {
 function bindEvents() {
   elements.prevButton.addEventListener("click", () => turnPage(-1));
   elements.nextButton.addEventListener("click", () => turnPage(1));
+
+  /* Zone "sfoglia" ai margini del libro (solo vista libro, desktop) */
+  if (elements.flipPrevZone) {
+    elements.flipPrevZone.addEventListener("click", () => turnPage(-1));
+  }
+  if (elements.flipNextZone) {
+    elements.flipNextZone.addEventListener("click", () => turnPage(1));
+  }
 
   elements.pageInput.addEventListener("change", () => {
     const p = Number.parseInt(elements.pageInput.value, 10);
@@ -578,6 +598,9 @@ function turnPage(delta) {
 
 function goToPage(pageNumber) {
   if (!state.pdf) return;
+  /* Consolida un eventuale zoom in anteprima: gli offset per lo scroll
+     devono riferirsi alla geometria reale */
+  if (zoomSession) commitZoom();
   const clamped = clamp(Number.isFinite(pageNumber) ? pageNumber : 1, 1, state.totalPages);
   state.direction = clamped >= state.currentPage ? "forward" : "back";
 
@@ -630,41 +653,106 @@ function isContinuousMode() {
 
 function applyReaderLayoutClasses() {
   elements.readerLayout.classList.toggle("is-continuous", state.isContinuous);
-  /* Mark as zoomed if zoom > 100% for CSS alignment logic */
+  /* is-zoomed cambia justify-content (quindi il layout): durante l'anteprima
+     zoom via transform va rimandato al commit o la vista salterebbe */
+  if (zoomSession) return;
   elements.readerLayout.classList.toggle("is-zoomed", state.zoomPercent > 100);
 }
 
 function setZoomPercent(next, { skipRender = false, anchorPoint = null } = {}) {
-  const min = Number(elements.zoomRange.min) || 75;
-  const max = Number(elements.zoomRange.max) || 220;
+  const min = Number(elements.zoomRange.min) || 50;
+  const max = Number(elements.zoomRange.max) || 300;
   next = clamp(next, min, max);
-  const changed = next !== state.zoomPercent;
+  const prevZoom = state.zoomPercent;
+  const changed = next !== prevZoom;
 
-  if (state.pdf && isContinuousMode() && changed) {
-    state.pendingScrollAnchor = captureScrollAnchor(anchorPoint);
-    state.isZooming = true;
-  }
   state.zoomPercent = next;
   elements.zoomRange.value = String(next);
   elements.zoomValue.textContent = `${next}%`;
-  applyReaderLayoutClasses();
 
-  /* Feedback istantaneo: ridimensiona subito le shell — i canvas esistenti
-     (width:100%) vengono stirati dal browser, il re-render nitido arriva
-     poco dopo via scheduleRender solo per le pagine visibili */
-  if (state.pdf && isContinuousMode() && changed && state.baseViewport) {
-    const scale = getContinuousScale(elements.bookStage.clientWidth);
-    const shells = Array.from(elements.pageSpread.children);
-    if (shells.length) {
-      sizeContinuousShells(scale, shells);
-      if (state.pendingScrollAnchor) {
-        scrollToAnchor(state.pendingScrollAnchor);
-        state.pendingScrollAnchor = null;
-      }
+  /* Zoom fluido (continuo E vista libro): il documento viene prima scalato
+     visivamente (transform, GPU — nessuno scatto "a scaletta"), poi al
+     termine del gesto il commit consolida e re-renderizza nitido */
+  const canPreview = state.pdf && changed
+    && elements.pageSpread.children.length > 0
+    && (!isContinuousMode() || state.baseViewport);
+  if (canPreview && beginOrUpdateZoomSession(anchorPoint, prevZoom)) return;
+
+  applyReaderLayoutClasses();
+  if (!skipRender) scheduleRender();
+}
+
+/* Avvia (o aggiorna) l'anteprima di zoom. L'origine della scala è il punto
+   ancorato (cursore/pinch/centro) in coordinate locali dello spread: scalando
+   attorno ad esso, quel punto resta fermo senza toccare lo scroll.
+   In modalità continua il fattore k deriva dalla scala reale (cache);
+   in vista libro dal rapporto tra percentuali di zoom. */
+function beginOrUpdateZoomSession(anchorPoint, prevZoom) {
+  const spread = elements.pageSpread;
+  const stage  = elements.bookStage;
+  const continuous = isContinuousMode();
+
+  if (!zoomSession) {
+    const anchor = captureScrollAnchor(anchorPoint);
+    if (!anchor) return false;
+
+    let baseScale = null;
+    if (continuous) {
+      baseScale = Number.isFinite(state.continuousScale)
+        ? state.continuousScale
+        : getContinuousScale(stage.clientWidth);
+      if (!Number.isFinite(baseScale) || baseScale <= 0) return false;
+    } else if (!Number.isFinite(prevZoom) || prevZoom <= 0) {
+      return false;
     }
+
+    const originX = stage.scrollLeft + anchor.viewX - spread.offsetLeft;
+    const originY = stage.scrollTop  + anchor.viewY - spread.offsetTop;
+    spread.style.transformOrigin = `${originX}px ${originY}px`;
+    spread.classList.add("is-zoom-preview");
+    zoomSession = { continuous, baseScale, baseZoom: prevZoom, anchor };
+    state.isZooming = true;
   }
 
-  if (!skipRender) scheduleRender();
+  const k = zoomSession.continuous
+    ? getContinuousScale(stage.clientWidth) / zoomSession.baseScale
+    : state.zoomPercent / zoomSession.baseZoom;
+  elements.pageSpread.style.transform = `scale(${k})`;
+
+  clearTimeout(zoomCommitTimer);
+  zoomCommitTimer = window.setTimeout(commitZoom, 200);
+  return true;
+}
+
+/* Chiude l'anteprima: rimuove il transform, porta le shell alla scala reale
+   e ripristina l'ancora. Non renderizza: chi la chiama decide se farlo. */
+function commitZoomVisuals() {
+  clearTimeout(zoomCommitTimer);
+  if (!zoomSession) return;
+  const { anchor, continuous } = zoomSession;
+  zoomSession = null;
+
+  const spread = elements.pageSpread;
+  spread.classList.remove("is-zoom-preview");
+  spread.style.transform = "";
+  spread.style.transformOrigin = "";
+  applyReaderLayoutClasses();
+
+  if (continuous) {
+    const scale = getContinuousScale(elements.bookStage.clientWidth);
+    sizeContinuousShells(scale, Array.from(spread.children));
+    if (anchor) scrollToAnchor(anchor);
+  } else if (anchor) {
+    /* Vista libro: le shell vengono ricreate dal prossimo renderSpread,
+       che ripristina l'ancora a pagine ridimensionate */
+    state.pendingScrollAnchor = anchor;
+  }
+}
+
+function commitZoom() {
+  if (!zoomSession) return;
+  commitZoomVisuals();
+  scheduleRender();
 }
 
 function scheduleRender() {
@@ -687,6 +775,8 @@ function scheduleRender() {
 async function renderAllPages() {
   if (!state.pdf) { syncControls(); return; }
 
+  /* Un'anteprima zoom ancora aperta va consolidata prima di misurare */
+  commitZoomVisuals();
   const renderId = ++state.renderId;
   elements.emptyState.hidden = true;
   elements.bookStage.classList.remove("is-turning-forward", "is-turning-back");
@@ -816,6 +906,10 @@ function observeContinuousShells(shells) {
 
 function handleShellIntersection(entries) {
   if (!state.pdf || !isContinuousMode()) return;
+  /* Durante l'anteprima zoom le shell sono ancora alla scala vecchia:
+     renderizzare ora creerebbe pagine di dimensione sbagliata. Il commit
+     rilancia comunque renderAllPages, che ri-osserva tutte le shell. */
+  if (zoomSession) return;
   /* Usa la scala in cache (quella con cui sono dimensionate le shell):
      ricalcolarla qui con la larghezza "live" renderizzerebbe pagine di
      dimensione diversa dalle shell durante un resize della finestra */
@@ -929,6 +1023,10 @@ function refreshHighlightLayers() {
 function bindScrollTracking() {
   if (isScrollTrackingBound) return;
   elements.bookStage.addEventListener("scroll", () => {
+    /* L'utente scrolla mentre l'anteprima zoom è aperta (pinch poi pan):
+       consolida subito così il pan prosegue sulla geometria reale.
+       (commitZoomVisuals azzera zoomSession prima di scrollare: niente loop) */
+    if (zoomSession) commitZoom();
     if (state.pendingScrollPage && !state.isZooming) {
       state.pendingScrollPage = null;
     }
@@ -1058,6 +1156,7 @@ function scrollToAnchor(anchor, smooth = false) {
 async function renderSpread() {
   if (!state.pdf) { syncControls(); return; }
 
+  commitZoomVisuals();
   teardownContinuousRendering();
   const renderId = ++state.renderId;
   const pages    = getVisiblePages();
@@ -1077,6 +1176,12 @@ async function renderSpread() {
     await Promise.all(pages.map((pn, i) => renderPage(pn, shells[i], scale, renderId)));
     if (renderId === state.renderId) {
       applySearchHighlights();
+      /* Ancora lasciata dal commit dello zoom in vista libro: le shell
+         hanno appena la dimensione definitiva, ora si può ripristinare */
+      if (state.pendingScrollAnchor) {
+        scrollToAnchor(state.pendingScrollAnchor);
+        state.pendingScrollAnchor = null;
+      }
       scrollToPendingBookmark();
       setStatus("Pronto");
     }
@@ -1084,6 +1189,7 @@ async function renderSpread() {
     console.error(err);
     setStatus("Errore durante il rendering del PDF");
   } finally {
+    state.isZooming = false;
     window.setTimeout(() => {
       elements.bookStage.classList.remove("is-turning-forward", "is-turning-back");
     }, 250);
@@ -1756,10 +1862,136 @@ function syncControls() {
     elements.pageIndicator.hidden = !has || !continuous;
     elements.pageIndicator.textContent = `Pagina ${first} / ${state.totalPages || 0}`;
   }
+
+  /* Zone sfoglia: visibili solo in vista libro */
+  const bookMode = has && !continuous;
+  if (elements.flipPrevZone) {
+    elements.flipPrevZone.hidden = !bookMode;
+    elements.flipPrevZone.disabled = !bookMode || first <= 1;
+  }
+  if (elements.flipNextZone) {
+    elements.flipNextZone.hidden = !bookMode;
+    elements.flipNextZone.disabled = !bookMode || last >= state.totalPages;
+  }
 }
 
 function setStatus(message) {
   elements.statusText.textContent = message === "Pronto" ? "" : message;
+}
+
+/* ============================================================
+   TOOL RAIL TRASCINABILE
+   La barra strumenti si sposta ovunque trascinando la maniglia;
+   rilasciata vicino alla posizione originale si riaggancia (il
+   "ghost" tratteggiato mostra la tana durante il trascinamento).
+   La posizione libera è ricordata in localStorage. Solo desktop:
+   su mobile la rail non esiste (sostituita dalle barre touch).
+   ============================================================ */
+const TOOLRAIL_POS_KEY = "pdf-book-viewer:toolrail-pos";
+const DOCK_SNAP_DISTANCE = 72;
+
+function setupToolRailDrag() {
+  const handle = elements.toolRailHandle;
+  const wrap   = elements.toolsWrap;
+  const ghost  = elements.toolsDockGhost;
+  if (!handle || !wrap || !ghost) return;
+
+  let drag = null;
+
+  /* Rettangolo che la rail occuperebbe da agganciata: il ghost usa lo
+     stesso posizionamento CSS della rail docked, quindi basta misurarlo
+     (resta corretto anche dopo un resize della finestra) */
+  function dockHomeRect() {
+    ghost.style.width  = `${wrap.offsetWidth}px`;
+    ghost.style.height = `${wrap.offsetHeight}px`;
+    return ghost.getBoundingClientRect();
+  }
+
+  function clampToViewport(x, y) {
+    const maxX = Math.max(4, window.innerWidth  - wrap.offsetWidth  - 4);
+    const maxY = Math.max(4, window.innerHeight - wrap.offsetHeight - 4);
+    return { x: clamp(x, 4, maxX), y: clamp(y, 4, maxY) };
+  }
+
+  function floatAt(x, y) {
+    wrap.classList.add("is-floating");
+    wrap.style.left = `${x}px`;
+    wrap.style.top  = `${y}px`;
+  }
+
+  function dockRail() {
+    wrap.classList.remove("is-floating");
+    wrap.style.left = "";
+    wrap.style.top  = "";
+    try { localStorage.removeItem(TOOLRAIL_POS_KEY); } catch { /* ok */ }
+  }
+
+  function persistPosition(x, y) {
+    try { localStorage.setItem(TOOLRAIL_POS_KEY, JSON.stringify({ x, y })); }
+    catch { /* quota piena: posizione non ricordata */ }
+  }
+
+  handle.addEventListener("pointerdown", (e) => {
+    if (media.matches || e.button !== 0) return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top, moved: false };
+    handle.setPointerCapture(e.pointerId);
+  });
+
+  handle.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      wrap.classList.add("is-dragging");
+      ghost.hidden = false;
+    }
+    const pos = clampToViewport(e.clientX - drag.dx, e.clientY - drag.dy);
+    floatAt(pos.x, pos.y);
+
+    const home = dockHomeRect();
+    const near = Math.hypot(pos.x - home.left, pos.y - home.top) < DOCK_SNAP_DISTANCE;
+    ghost.classList.toggle("is-near", near);
+  });
+
+  function endDrag() {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    wrap.classList.remove("is-dragging");
+    ghost.classList.remove("is-near");
+
+    /* Misura la "tana" PRIMA di nascondere il ghost (nascosto ha rect nullo) */
+    const rect = wrap.getBoundingClientRect();
+    const home = dockHomeRect();
+    ghost.hidden = true;
+    if (!moved) return;
+
+    if (Math.hypot(rect.left - home.left, rect.top - home.top) < DOCK_SNAP_DISTANCE) {
+      dockRail();
+    } else {
+      persistPosition(rect.left, rect.top);
+    }
+  }
+  handle.addEventListener("pointerup", endDrag);
+  handle.addEventListener("pointercancel", endDrag);
+
+  /* Ripristina la posizione libera salvata (desktop) */
+  try {
+    const saved = JSON.parse(localStorage.getItem(TOOLRAIL_POS_KEY) || "null");
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y) && !media.matches) {
+      const pos = clampToViewport(saved.x, saved.y);
+      floatAt(pos.x, pos.y);
+    }
+  } catch { /* dato corrotto: resta agganciata */ }
+
+  /* La finestra si restringe: tieni la rail dentro il viewport */
+  window.addEventListener("resize", () => {
+    if (!wrap.classList.contains("is-floating")) return;
+    const rect = wrap.getBoundingClientRect();
+    const pos = clampToViewport(rect.left, rect.top);
+    floatAt(pos.x, pos.y);
+  });
 }
 
 /* Le utility generiche (clamp, truncateText, createId, ...) vivono in common.js */

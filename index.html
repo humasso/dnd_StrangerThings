@@ -252,33 +252,75 @@
 </header>
 
 <main>
-  <div class="cards-grid">
+  <!-- ═══════════════════════════════════════════════════
+       TAVOLO DA GIOCO — gli elementi del set appoggiati sul piano.
+       Click su un oggetto: si "alza" in primo piano con le info
+       della categoria (vedi #itemDetail).
+  ═══════════════════════════════════════════════════ -->
+  <section class="table-scene" aria-label="Tavolo da gioco del Hellfire Club">
+    <div class="table-surface" aria-hidden="true"></div>
 
-    <a href="pages/libretti.html" class="card" data-category="libretti" aria-label="Libretti">
-      <img src="assets/icons/libretti.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg"><span class="card-label">LIBRETTI</span></div>
-    </a>
+    <!-- La family shot è lo sfondo (::before) di .table-items: condivide lo
+         stesso box, così ogni icona si allinea al pezzo corrispondente.
+         Ordine DOM back→front; width/height intrinseci = niente layout shift. -->
+    <div class="table-items">
+      <button type="button" class="table-item ti-schermo" data-category="schermo"
+              aria-label="Schermo Master — apri i dettagli">
+        <span class="item-obj"><img src="assets/icons/schermo_master.png" width="767" height="310" alt=""></span>
+        <span class="item-hint">Schermo Master</span>
+      </button>
 
-    <a href="pages/carte.html" class="card card-folder-missing"
-       data-category="carte" aria-label="Carte">
-      <img src="assets/icons/carte.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg"><span class="card-label">CARTE</span></div>
-    </a>
+      <button type="button" class="table-item ti-schede" data-category="schede"
+              aria-label="Schede Giocatori — apri i dettagli">
+        <span class="item-obj"><img src="assets/icons/schede_giocatori.png" width="1054" height="1024" alt=""></span>
+        <span class="item-hint">Schede Giocatori</span>
+      </button>
 
-    <a href="pages/schede.html" class="card card-folder-missing"
-       data-category="schede" aria-label="Schede Giocatori">
-      <img src="assets/icons/schede_giocatori.png" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg"><span class="card-label">SCHEDE<br>GIOCATORI</span></div>
-    </a>
+      <button type="button" class="table-item ti-carte" data-category="carte"
+              aria-label="Carte — apri i dettagli">
+        <span class="item-obj"><img src="assets/icons/carte.png" width="1264" height="844" alt=""></span>
+        <span class="item-hint">Carte</span>
+      </button>
 
-    <a href="pages/schermo.html" class="card card-folder-missing"
-       data-category="schermo" aria-label="Schermo Master">
-      <img src="assets/icons/schermo_master.webp" alt="" class="card-icon" aria-hidden="true">
-      <div class="card-bg"><span class="card-label">SCHERMO<br>MASTER</span></div>
-    </a>
-
-  </div>
+      <button type="button" class="table-item ti-libretti" data-category="libretti"
+              aria-label="Libretti — apri i dettagli">
+        <span class="item-obj"><img src="assets/icons/libretti.png" width="976" height="1096" alt=""></span>
+        <span class="item-hint">Libretti</span>
+      </button>
+    </div>
+  </section>
 </main>
+
+<!-- ═══════════════════════════════════════════════════
+     DETTAGLIO OGGETTO — l'elemento si alza dal tavolo in primo
+     piano, sfondo scurito e non selezionabile, info + Apri
+═══════════════════════════════════════════════════ -->
+<div class="item-detail" id="itemDetail" hidden
+     role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <div class="item-detail-backdrop" id="detailBackdrop"></div>
+
+  <div class="item-detail-card">
+    <div class="detail-visual" aria-hidden="true">
+      <img id="detailImg" src="" alt="">
+    </div>
+
+    <div class="detail-info">
+      <h2 id="detailTitle">Categoria</h2>
+
+      <p class="detail-desc" id="detailDesc">…</p>
+
+      <div class="detail-meta">
+        <span>Segnalibri: <strong id="detailBookmarks">…</strong></span>
+        <span>Ultima lettura: <strong id="detailLastVisit">…</strong></span>
+      </div>
+
+      <div class="detail-actions">
+        <a class="detail-open" id="detailOpen" href="#">Apri</a>
+        <button class="detail-close" type="button" id="detailClose">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      Pannello segnalibri — fixed bottom-right
@@ -571,13 +613,28 @@ function importBookmarks(event) {
 }
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") closeBmPanel();
+  if (e.key === "Escape") { closeDetail(); closeBmPanel(); }
 });
 
 /* ═══════════════════════════════════════════════════════════
-   Card categorie — grigia le categorie senza contenuti
+   TAVOLO DA GIOCO — manifest per categoria e stato "vuota"
    (doppio tentativo: books.json dal server, books.static.json su Pages)
 ═══════════════════════════════════════════════════════════ */
+const LAST_VISIT_PREFIX = "pdf-book-viewer:last-visit:";
+const CATEGORY_LABELS = {
+  libretti: "Libretti",
+  carte: "Carte",
+  schede: "Schede Giocatori",
+  schermo: "Schermo Master",
+};
+const CATEGORY_DESCRIPTIONS = {
+  libretti: "I libretti d'avventura del Circolo del Fuoco Infernale: guide di gioco e campagne da leggere e giocare al tavolo.",
+  carte: "Le carte del set: mostri, oggetti e incantesimi da tenere a portata di mano durante la sessione.",
+  schede: "Le schede dei personaggi: statistiche, equipaggiamento e progressi della compagnia di Hawkins.",
+  schermo: "Lo schermo del Dungeon Master: tabelle, riferimenti rapidi e l'illustrazione che nasconde i segreti del gioco.",
+};
+const categoryBooksCache = new Map();
+
 async function fetchCategoryBooks(slug) {
   const PATHS = [
     `assets/contenuti/${slug}/books.json`,
@@ -594,16 +651,171 @@ async function fetchCategoryBooks(slug) {
   return [];
 }
 
-async function updateCategoryCards() {
-  const cards = document.querySelectorAll(".card[data-category]");
-  await Promise.all([...cards].map(async (card) => {
-    const books = await fetchCategoryBooks(card.dataset.category);
-    card.classList.toggle("card-folder-missing", books.length === 0);
+function getCategoryBooks(slug) {
+  if (!categoryBooksCache.has(slug)) {
+    categoryBooksCache.set(slug, fetchCategoryBooks(slug).catch(() => []));
+  }
+  return categoryBooksCache.get(slug);
+}
+
+async function updateTableItems() {
+  const items = document.querySelectorAll(".table-item[data-category]");
+  await Promise.all([...items].map(async (item) => {
+    const books = await getCategoryBooks(item.dataset.category);
+    item.classList.toggle("is-empty", books.length === 0);
   }));
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DETTAGLIO OGGETTO — l'elemento si alza dal tavolo con le info
+═══════════════════════════════════════════════════════════ */
+const detailEl  = document.getElementById("itemDetail");
+const detailImg = document.getElementById("detailImg");
+const prefersReducedMotion =
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let detailToken = 0;
+let lastFocused = null;
+let liftedItem  = null;
+
+function countCategoryBookmarks(books) {
+  let n = 0;
+  for (const b of books) {
+    if (!b.id) continue;
+    try {
+      const arr = JSON.parse(localStorage.getItem(BM_PREFIX + b.id) || "[]");
+      if (Array.isArray(arr)) n += arr.length;
+    } catch { /* chiave corrotta — ignorata */ }
+  }
+  return n;
+}
+
+function formatLastVisit(slug) {
+  let ts = 0;
+  try { ts = Number(localStorage.getItem(LAST_VISIT_PREFIX + slug) || 0); } catch { /* ok */ }
+  if (!ts) return "mai aperta";
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 1)  return "poco fa";
+  if (min < 60) return `${min} minut${min === 1 ? "o" : "i"} fa`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24)  return `${hr} or${hr === 1 ? "a" : "e"} fa`;
+  const days = Math.floor(hr / 24);
+  if (days === 1) return "ieri";
+  if (days < 7)   return `${days} giorni fa`;
+  return new Date(ts).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/* FLIP: anima l'immagine del dettaglio DA dove sta l'oggetto sul tavolo
+   (piccola, inclinata) FINO alla posa dritta e ingrandita — o al contrario.
+   Sfrutta la Web Animations API leggendo i due bounding rect. */
+function animateLift(sourceImg, reverse) {
+  if (prefersReducedMotion || !sourceImg) return null;
+  const from = sourceImg.getBoundingClientRect();
+  const to   = detailImg.getBoundingClientRect();
+  if (!from.width || !to.width) return null;
+  const dx = (from.left + from.width / 2) - (to.left + to.width / 2);
+  const dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+  const scale = Math.max(0.12, from.width / to.width);
+  const flat = `translate(${dx}px, ${dy}px) scale(${scale}) rotateX(46deg)`;
+  const up   = "translate(0, 0) scale(1) rotateX(0deg)";
+  const frames = reverse
+    ? [{ transform: up, opacity: 1 }, { transform: flat, opacity: 0.15 }]
+    : [{ transform: flat, opacity: 0.3 }, { transform: up, opacity: 1 }];
+  return detailImg.animate(frames, {
+    duration: reverse ? 380 : 560,
+    easing: reverse ? "cubic-bezier(.4,.05,.7,.3)" : "cubic-bezier(.2,.72,.24,1)",
+  });
+}
+
+async function openDetail(item) {
+  const slug    = item.dataset.category;
+  const label   = CATEGORY_LABELS[slug] || slug;
+  const myToken = ++detailToken;
+  lastFocused = item;
+  liftedItem  = item;
+
+  const srcImg = item.querySelector("img");
+  detailImg.src = srcImg.currentSrc || srcImg.src;
+  document.getElementById("detailTitle").textContent = label;
+  document.getElementById("detailDesc").textContent  = CATEGORY_DESCRIPTIONS[slug] || "";
+  document.getElementById("detailBookmarks").textContent = "…";
+  document.getElementById("detailLastVisit").textContent = formatLastVisit(slug);
+
+  const open = document.getElementById("detailOpen");
+  open.href = `pages/${slug}.html`;
+  open.classList.remove("is-disabled");
+  open.removeAttribute("aria-disabled");
+
+  document.body.classList.add("detail-active");
+  detailEl.hidden = false;
+  item.classList.add("is-lifted");   // nasconde la sorgente durante il "volo"
+  animateLift(srcImg, false);
+  document.getElementById("detailClose").focus();
+
+  const books = await getCategoryBooks(slug);
+  if (myToken !== detailToken || detailEl.hidden) return;
+
+  if (books.length === 0) {
+    document.getElementById("detailDesc").textContent =
+      "Questa sezione non contiene ancora nulla. Torna presto: il Circolo si sta ancora radunando.";
+    document.getElementById("detailBookmarks").textContent = "—";
+    open.classList.add("is-disabled");
+    open.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  const titles = books.map(b => b.title || idToLabel(b.id || "")).filter(Boolean);
+  const shown  = titles.slice(0, 4).join(", ");
+  const extra  = titles.length > 4 ? ` e altri ${titles.length - 4}` : "";
+  document.getElementById("detailDesc").textContent =
+    `${CATEGORY_DESCRIPTIONS[slug] || ""} Disponibili: ${shown}${extra}.`;
+
+  const bm = countCategoryBookmarks(books);
+  document.getElementById("detailBookmarks").textContent = bm === 0 ? "nessuno" : String(bm);
+}
+
+function closeDetail() {
+  if (detailEl.hidden) return;
+  detailToken++;
+  const item = liftedItem;
+
+  const finish = () => {
+    detailEl.hidden = true;
+    detailEl.classList.remove("is-closing");
+    document.body.classList.remove("detail-active");
+    if (item) item.classList.remove("is-lifted");
+    liftedItem = null;
+    if (lastFocused) lastFocused.focus();
+  };
+
+  const anim = item ? animateLift(item.querySelector("img"), true) : null;
+  if (!anim) { finish(); return; }
+  detailEl.classList.add("is-closing");
+  anim.onfinish = finish;
+  anim.oncancel = finish;
+}
+
+/* Trappola del focus dentro il dialog (UX: Tab non esce dalla scheda) */
+detailEl.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab") return;
+  const f = detailEl.querySelectorAll("a[href]:not(.is-disabled), button:not([disabled])");
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+document.querySelectorAll(".table-item[data-category]").forEach((item) => {
+  item.addEventListener("click", () => openDetail(item));
+});
+document.getElementById("detailBackdrop").addEventListener("click", closeDetail);
+document.getElementById("detailClose").addEventListener("click", closeDetail);
+document.getElementById("detailOpen").addEventListener("click", (e) => {
+  if (e.currentTarget.classList.contains("is-disabled")) e.preventDefault();
+});
+
 document.addEventListener("DOMContentLoaded", () => {
-  updateCategoryCards();
+  updateTableItems();
   refreshPanel(); // badge iniziale
 });
 </script>

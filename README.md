@@ -18,9 +18,12 @@ Un lettore PDF moderno, reattivo e feature-rich per leggere i libri di D&D in st
 ### Tools
 
 - Ricerca full-text nel PDF (con avanzamento e annullamento automatico se cambi query)
-- Zoom fluido ancorato al puntatore (slider, `Ctrl`+rotella, pinch, tasti `+`/`-`)
+- Zoom **fluido** ancorato al puntatore (50–200%): il documento scala senza scatti
+  e il render nitido arriva a fine gesto (slider, `Ctrl`+rotella, pinch, `+`/`-`)
 - Due modalità di visualizzazione su PC: **scorrimento continuo** e **vista libro**
-  (spread a due pagine affiancate)
+  (tomo aperto con dorso, bordi pagina e zone "sfoglia" ai margini)
+- **Barra strumenti trascinabile**: spostala ovunque dalla maniglia; rilasciata
+  vicino alla posizione originale si riaggancia da sola
 - Segnalibri personalizzati su pagina o testo evidenziato
 - Export/import segnalibri in JSON dalla home
 - Indicatore di pagina e barra di avanzamento lettura

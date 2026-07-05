@@ -22,7 +22,7 @@
   const isDrawerMode = () => window.innerWidth <= DRAWER_BP;
 
   /* ── Livelli zoom ciclici per mobile ── */
-  const ZOOM_STEPS = [80, 100, 130, 160];
+  const ZOOM_STEPS = [50, 100, 150, 200];
   let zoomStepIndex = 1; // 100% di default
 
   /* ── Riferimenti elementi ── */
@@ -161,6 +161,10 @@
     }
   }).observe(master.readerLayout, { attributes: true, attributeFilter: ["hidden"] });
 
+  /* Nel reader unico il layout è visibile fin dal caricamento: l'observer
+     sopra non scatterebbe mai, il polling va avviato subito */
+  if (!master.readerLayout.hidden && isMobile()) startSyncPolling();
+
   /* ════════════════════════════════════════════════════════
      ZOOM CICLICO
      ════════════════════════════════════════════════════════ */
@@ -223,6 +227,121 @@
       mob.zoomCycle.classList.remove("is-active");
     }, 900);
   }
+
+  /* ════════════════════════════════════════════════════════
+     BARRE TRASCINABILI — top bar strumenti e nav pagine
+     Trascina dalla maniglia; rilasciata vicino alla posizione
+     originale si riaggancia (il ghost tratteggiato fa da guida).
+     La posizione libera è ricordata in localStorage.
+     ════════════════════════════════════════════════════════ */
+  const MOB_SNAP_DISTANCE = 64;
+
+  function makeDraggableBar(target, handle, ghost, storageKey) {
+    if (!target || !handle || !ghost) return;
+    let drag = null;
+
+    function clampPos(x, y) {
+      const maxX = Math.max(4, window.innerWidth  - target.offsetWidth  - 4);
+      const maxY = Math.max(4, window.innerHeight - target.offsetHeight - 4);
+      return {
+        x: Math.min(Math.max(x, 4), maxX),
+        y: Math.min(Math.max(y, 4), maxY),
+      };
+    }
+
+    function floatAt(x, y) {
+      target.classList.add("is-floating");
+      target.style.left = `${x}px`;
+      target.style.top  = `${y}px`;
+    }
+
+    function dockBar() {
+      target.classList.remove("is-floating");
+      target.style.left = "";
+      target.style.top  = "";
+      try { localStorage.removeItem(storageKey); } catch { /* ok */ }
+    }
+
+    /* Rettangolo "casa": il ghost usa le stesse coordinate CSS della barra
+       agganciata, quindi basta dimensionarlo come la barra e misurarlo */
+    function homeRect() {
+      ghost.style.width  = `${target.offsetWidth}px`;
+      ghost.style.height = `${target.offsetHeight}px`;
+      return ghost.getBoundingClientRect();
+    }
+
+    handle.addEventListener("pointerdown", (e) => {
+      if (!isMobile()) return;
+      e.preventDefault();
+      const rect = target.getBoundingClientRect();
+      drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top, moved: false };
+      handle.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      if (!drag.moved) {
+        drag.moved = true;
+        ghost.hidden = false;
+      }
+      const pos = clampPos(e.clientX - drag.dx, e.clientY - drag.dy);
+      floatAt(pos.x, pos.y);
+      const home = homeRect();
+      ghost.classList.toggle("is-near",
+        Math.hypot(pos.x - home.left, pos.y - home.top) < MOB_SNAP_DISTANCE);
+    });
+
+    function endDrag() {
+      if (!drag) return;
+      const moved = drag.moved;
+      drag = null;
+      /* misura la casa PRIMA di nascondere il ghost (nascosto ha rect nullo) */
+      const rect = target.getBoundingClientRect();
+      const home = homeRect();
+      ghost.classList.remove("is-near");
+      ghost.hidden = true;
+      if (!moved) return;
+
+      if (Math.hypot(rect.left - home.left, rect.top - home.top) < MOB_SNAP_DISTANCE) {
+        dockBar();
+      } else {
+        try { localStorage.setItem(storageKey, JSON.stringify({ x: rect.left, y: rect.top })); }
+        catch { /* quota piena: posizione non ricordata */ }
+      }
+    }
+    handle.addEventListener("pointerup", endDrag);
+    handle.addEventListener("pointercancel", endDrag);
+
+    /* Ripristina la posizione libera salvata */
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y) && isMobile()) {
+        const pos = clampPos(saved.x, saved.y);
+        floatAt(pos.x, pos.y);
+      }
+    } catch { /* dato corrotto: resta agganciata */ }
+
+    /* Rotazione/resize: tieni la barra dentro il viewport */
+    window.addEventListener("resize", () => {
+      if (!isMobile() || !target.classList.contains("is-floating")) return;
+      const rect = target.getBoundingClientRect();
+      const pos = clampPos(rect.left, rect.top);
+      floatAt(pos.x, pos.y);
+    });
+  }
+
+  makeDraggableBar(
+    mob.topBar,
+    document.getElementById("mobTopBarHandle"),
+    document.getElementById("mobTopBarGhost"),
+    "pdf-book-viewer:mob-bar-pos:top"
+  );
+  makeDraggableBar(
+    mob.bottomBar ? mob.bottomBar.querySelector(".mob-nav-group") : null,
+    document.getElementById("mobBottomBarHandle"),
+    document.getElementById("mobBottomBarGhost"),
+    "pdf-book-viewer:mob-bar-pos:bottom"
+  );
 
   /* ════════════════════════════════════════════════════════
      DRAWER — ricerca e segnalibri

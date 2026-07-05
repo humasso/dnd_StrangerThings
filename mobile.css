@@ -45,41 +45,65 @@
   .header-logo .header-img { height: 18px; }
   .header-center .header-img { height: 32px; }
 
-  /* Grid 2×2 per le card, senza margine extra in fondo */
-  .cards-grid {
-    max-width: 100%;
-    max-width:75%;
-    width: 100%;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    padding: 0 6px;
-    margin-bottom: 24px;
-  }
-
-  /* Card: icona meno prominente per evitare overflow */
-  .card-icon {
-    width: 76%;
-    margin-bottom: -38px;
-  }
-
-  .card-bg {
-    padding: 46px 10px 18px;
-    min-height: 108px;
-    width: 90%;
-    height: auto;
-    border-radius: 20px;
-  }
-
-  .card-label {
-    font-size: clamp(17px, 4.5vw, 24px);
-    letter-spacing: 2px;
-  }
-
   /* Main centrato verticalmente */
   main {
     padding: 12px 10px 16px;
     align-items: center;
   }
+
+  /* ── Tavolo da gioco: STESSO layout allineato del desktop, solo scalato ──
+     (le posizioni sono in % del box = pixel della family shot, quindi
+     rimangono allineate a ogni larghezza). Clip di sicurezza contro lo
+     scroll orizzontale del piano che sborda di proposito. */
+  .table-scene { overflow: hidden; }
+
+  .table-surface {
+    transform: translate(-50%, -50%);
+    width: 128%;
+    height: 116%;
+    border-radius: 26px / 40px;
+  }
+
+  /* Box un filo più largo su mobile per icone più grandi/toccabili */
+  .table-items {
+    width: 96%;
+  }
+
+  /* Disposizioni specifiche per mobile */
+  .ti-schermo  { --x: 43%; --y: 21%; --w: 77%; --z: 1; --rot: -0deg;  --perspective: 1400px; --rotateX: 16deg; }
+  .ti-schede   { --x: 78%; --y: 49%; --w: 28%; --z: 2; --rot:  5deg;  --perspective: 1400px;   --rotateX: 60deg; }
+  .ti-carte    { --x: 56%; --y: 80%; --w: 35%; --z: 2; --rot: -30deg; --perspective: 1400px;   --rotateX: 60deg; }
+  .ti-libretti { --x: 33%; --y: 55%; --w: 25%; --z: 4; --rot: -45deg; --perspective: 1400px;   --rotateX: 60deg; }
+
+  /* ── Dettaglio oggetto: colonna, oggetto sopra e info sotto ── */
+  .item-detail { padding: 14px; }
+
+  .item-detail-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 8px 18px;
+    justify-items: center;
+    text-align: center;
+    overflow-y: auto;
+  }
+
+  .detail-visual img {
+    width: clamp(150px, 46vw, 220px);
+  }
+
+  /* Info a piena larghezza e centrata: niente più "justify-items:center"
+     (faceva prendere al paragrafo la sua max-content, sforando lo schermo) */
+  .detail-info {
+    width: 100%;
+    justify-items: stretch;
+    text-align: center;
+  }
+
+  .detail-desc { max-width: none; width: 100%; }
+
+  .detail-meta { justify-content: center; }
+
+  .detail-actions { justify-content: center; }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -419,6 +443,92 @@
     height: 42px;
     border-radius: 1000px;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Maniglia di trascinamento delle barre mobile ── */
+  .mob-drag-handle {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    align-self: stretch;
+    color: rgba(255, 244, 230, 0.35);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mob-drag-handle svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+  }
+
+  /* Barre sganciate: posizione libera (inline da JS) */
+  .mob-top-bar.is-floating {
+    transform: none;
+    z-index: 260;
+  }
+
+  .mob-nav-group.is-floating {
+    position: fixed;
+    z-index: 260;
+    pointer-events: auto;
+  }
+
+  /* "Tana" delle barre: slot scuro mostrato durante il drag.
+     Il fondo pieno + blur la rende leggibile anche sopra le pagine
+     bianche del PDF (un semplice tratteggio spariva nel testo).
+     Quando sei abbastanza vicino il bordo si solidifica: rilascia
+     e la barra si riaggancia. */
+  .mob-bar-ghost {
+    position: fixed;
+    border: 2px dashed rgba(255, 48, 56, 0.6);
+    border-radius: 999px;
+    background: rgba(8, 4, 4, 0.62);
+    box-shadow:
+      inset 0 0 14px rgba(215, 25, 32, 0.14),
+      0 4px 18px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    opacity: 0.9;
+    pointer-events: none;
+    /* SOTTO le barre (bottom bar container = 100, top bar = 230): la nav
+       trascinata sulla tana deve passarci sopra, non sparirci dietro.
+       Il gruppo nav flottante ha z-index 260 ma dentro il contesto di
+       stacking del contenitore (100), quindi il ghost deve stare < 100. */
+    z-index: 99;
+    transition:
+      opacity 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .mob-bar-ghost.is-near {
+    opacity: 1;
+    border-style: solid;
+    border-color: rgba(255, 48, 56, 1);
+    background: rgba(215, 25, 32, 0.2);
+    box-shadow:
+      inset 0 0 18px rgba(215, 25, 32, 0.3),
+      0 0 24px rgba(215, 25, 32, 0.55);
+  }
+
+  /* Stesse coordinate "casa" delle rispettive barre agganciate
+     (la bottom tiene conto della safe-area: la barra vera è rialzata
+     dal padding-bottom del contenitore su iPhone con notch) */
+  .mob-bar-ghost-top {
+    top: calc(var(--mob-top-bar) + 25px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .mob-bar-ghost-bottom {
+    bottom: calc(var(--mob-bottom-bar) + 25px + 3px + var(--mob-safe-bottom));
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   /* ── BOTTOM BAR MOBILE — toolbar fissa in basso ── */
@@ -836,20 +946,11 @@
    ════════════════════════════════════════════════════════════ */
 @media (max-width: 380px) {
 
-  .cards-grid {
-    gap: 10px;
-    padding: 0 4px;
-  }
+  /* Le larghezze per-oggetto (con componente vw) scalano già da sole:
+     qui basta ridurre l'etichetta */
+  .item-hint { font-size: 12px; letter-spacing: 1.5px; }
 
-  .card-icon { width: 70%; margin-bottom: -30px; }
-
-  .card-bg {
-    padding: 40px 8px 14px;
-    min-height: 76px;
-    border-radius: 16px;
-  }
-
-  .card-label { font-size: 15px; letter-spacing: 1px; }
+  .detail-visual img { width: clamp(130px, 38vw, 170px); }
 
   .hellfire-frame {
     padding: 12px 6px 8px;
