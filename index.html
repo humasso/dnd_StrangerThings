@@ -36,7 +36,12 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 8px;
+      /* Il contenitore è ampio (include il pannello chiuso) e sta sopra a
+         tutto: senza questo ingoia i click destinati alle icone sottostanti.
+         Solo il pulsante e il pannello aperto restano cliccabili. */
+      pointer-events: none;
     }
+    #bm-toggle { pointer-events: auto; }
 
     /* ── Pill toggle ── */
     #bm-toggle {
@@ -290,6 +295,10 @@
     </div>
   </section>
 </main>
+
+<!-- Hotspot cliccabili: seguono via JS il bounding box VISIBILE di ogni
+     icona (robusto con i transform 3D estremi). Popolato da buildHotspots(). -->
+<div class="table-hotspots" id="tableHotspots" aria-hidden="true"></div>
 
 <!-- ═══════════════════════════════════════════════════
      DETTAGLIO OGGETTO — l'elemento si alza dal tavolo in primo
@@ -786,6 +795,7 @@ function closeDetail() {
     if (item) item.classList.remove("is-lifted");
     liftedItem = null;
     if (lastFocused) lastFocused.focus();
+    positionHotspots(); // la geometria è di nuovo stabile
   };
 
   const anim = item ? animateLift(item.querySelector("img"), true) : null;
@@ -805,6 +815,10 @@ detailEl.addEventListener("keydown", (e) => {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
+/* I .table-item restano cliccabili da TASTIERA (Tab + Invio). Il click col
+   mouse/tocco è gestito dalle hotspot (vedi sotto), che seguono l'icona
+   VISIBILE: con transform 3D estremi il rettangolo del bottone non coincide
+   con ciò che si vede, quindi un'area fissa non basterebbe. */
 document.querySelectorAll(".table-item[data-category]").forEach((item) => {
   item.addEventListener("click", () => openDetail(item));
 });
@@ -814,9 +828,71 @@ document.getElementById("detailOpen").addEventListener("click", (e) => {
   if (e.currentTarget.classList.contains("is-disabled")) e.preventDefault();
 });
 
+/* ═══════════════════════════════════════════════════════════
+   HOTSPOT — aree di tap che seguono il bounding box VISIBILE
+   di ogni icona (robuste anche con perspective/rotazioni estreme).
+   Le posizioni/larghezze delle icone NON vengono toccate.
+═══════════════════════════════════════════════════════════ */
+const HOTSPOT_PAD = 8; // px extra per un tap più comodo
+let hotspots = [];
+
+function buildHotspots() {
+  const layer = document.getElementById("tableHotspots");
+  if (!layer) return;
+  layer.replaceChildren();
+  hotspots = [];
+  document.querySelectorAll(".table-item[data-category]").forEach((item) => {
+    const hs = document.createElement("button");
+    hs.type = "button";
+    hs.className = "table-hotspot";
+    hs.tabIndex = -1;
+    hs.setAttribute("aria-hidden", "true");
+    hs.addEventListener("click", () => openDetail(item));
+    /* Il bottone-icona ha pointer-events:none: l'hover lo pilota la hotspot */
+    hs.addEventListener("pointerenter", () => item.classList.add("is-hovered"));
+    hs.addEventListener("pointerleave", () => item.classList.remove("is-hovered"));
+    layer.appendChild(hs);
+    hotspots.push({ hs, item });
+  });
+  positionHotspots();
+}
+
+function positionHotspots() {
+  if (!detailEl.hidden) return; // non riposizionare mentre il dettaglio è aperto
+  for (const { hs, item } of hotspots) {
+    const img = item.querySelector("img");
+    if (!img) continue;
+    const r = img.getBoundingClientRect();
+    if (!r.width || !r.height) { hs.style.display = "none"; continue; }
+    hs.style.display = "block";
+    hs.style.left   = `${r.left - HOTSPOT_PAD}px`;
+    hs.style.top    = `${r.top  - HOTSPOT_PAD}px`;
+    hs.style.width  = `${r.width  + HOTSPOT_PAD * 2}px`;
+    hs.style.height = `${r.height + HOTSPOT_PAD * 2}px`;
+    /* Stesso ordine di sovrapposizione delle icone: quella davanti vince */
+    hs.style.zIndex = getComputedStyle(item).zIndex || "1";
+  }
+}
+
+/* Riposiziona quando la geometria può cambiare */
+window.addEventListener("resize", positionHotspots);
+window.addEventListener("load", positionHotspots);
+document.querySelectorAll(".table-item img").forEach((img) => {
+  if (!img.complete) img.addEventListener("load", positionHotspots, { once: true });
+});
+if ("ResizeObserver" in window) {
+  const ro = new ResizeObserver(positionHotspots);
+  const scene = document.querySelector(".table-scene");
+  if (scene) ro.observe(scene);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   updateTableItems();
   refreshPanel(); // badge iniziale
+  buildHotspots();
+  /* Un paio di re-layout dopo il primo paint (font/immagini) */
+  requestAnimationFrame(positionHotspots);
+  setTimeout(positionHotspots, 300);
 });
 </script>
 

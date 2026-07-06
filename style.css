@@ -258,9 +258,32 @@ main::before {
   background: transparent;
   cursor: pointer;
   z-index: var(--z, 1);
+  /* Il click col puntatore è gestito dalle hotspot (che seguono l'icona
+     visibile, robuste ai transform 3D estremi). Il bottone resta comunque
+     attivabile da tastiera (Tab + Invio): pointer-events non blocca i tasti. */
+  pointer-events: none;
 }
 
 .table-item:focus-visible { outline: none; }
+
+/* ── Layer delle hotspot cliccabili (posizionate via JS in coord. viewport) ── */
+.table-hotspots {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.table-hotspot {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* Ogni icona è centrata sul pezzo corrispondente della family shot e
    dimensionata in proporzione: schermo (il più grande) > libretti > schede >
@@ -293,8 +316,10 @@ main::before {
   filter: saturate(0.14) brightness(0.7) drop-shadow(0 16px 16px rgba(0, 0, 0, 0.55));
 }
 
-/* Hover/focus: l'icona si ingrandisce leggermente e si accende di rosso */
-.table-item:hover .item-obj,
+/* Hover/focus: l'icona si ingrandisce leggermente e si accende di rosso.
+   .is-hovered è messa dalle hotspot (il bottone ha pointer-events:none e non
+   riceverebbe :hover); :focus-visible resta per la navigazione da tastiera. */
+.table-item.is-hovered .item-obj,
 .table-item:focus-visible .item-obj {
   transform: var(--obj-transform) scale(1.08);
   filter:
@@ -302,7 +327,7 @@ main::before {
     drop-shadow(0 0 26px rgba(255, 48, 56, 0.6));
 }
 
-.table-item.is-empty:hover .item-obj,
+.table-item.is-empty.is-hovered .item-obj,
 .table-item.is-empty:focus-visible .item-obj {
   transform: var(--obj-transform) scale(1.08);
   filter:
@@ -335,7 +360,7 @@ main::before {
   transition: opacity 200ms ease;
 }
 
-.table-item:hover .item-hint,
+.table-item.is-hovered .item-hint,
 .table-item:focus-visible .item-hint {
   opacity: 1;
 }
